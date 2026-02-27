@@ -1,0 +1,290 @@
+#!/bin/bash
+#
+# HomeProxy CLI - Main Entry Point
+# 
+# Usage: homeproxy <command> [options]
+#
+
+set -e
+
+# Paths
+INSTALL_DIR="${HOMEPOXY_LIB:-/usr/libexec/homeproxy}"
+BIN_DIR="${HOMEPOXY_BIN:-/usr/bin}"
+CONFIG_DIR="${HOMEPOXY_CONF:-/etc/homeproxy}"
+
+# Load common library
+if [ -f "$INSTALL_DIR/lib.sh" ]; then
+    . "$INSTALL_DIR/lib.sh"
+else
+    # Fallback to local paths
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    if [ -f "$SCRIPT_DIR/lib/homeproxy.sh" ]; then
+        . "$SCRIPT_DIR/lib/homeproxy.sh"
+    fi
+fi
+
+# Check installed
+check_installed() {
+    if [ ! -f "/etc/config/homeproxy" ]; then
+        log_error "HomeProxy is not installed"
+        log_info "Please install HomeProxy first: https://immortalwrt.org/"
+        exit 1
+    fi
+}
+
+# Load module
+load_module() {
+    local module="$1"
+    if [ -f "$INSTALL_DIR/lib/${module}.sh" ]; then
+        . "$INSTALL_DIR/lib/${module}.sh"
+    else
+        local script_dir="$(cd "$(dirname "$0")/.." && pwd)"
+        if [ -f "$script_dir/lib/${module}.sh" ]; then
+            . "$script_dir/lib/${module}.sh"
+        fi
+    fi
+}
+
+# Show usage
+usage() {
+    cat << EOF
+HomeProxy CLI - Command line interface for HomeProxy
+
+Usage: homeproxy <command> [options]
+
+Commands:
+    node <action>        Node management
+        list                List all nodes
+        test [name]         Test node connection
+        set-main <name>     Set main node
+        add <type> <addr> <port> [label]  Add new node
+        remove <name>       Remove node
+        edit <name> <key> <value>  Edit node
+        import <url>        Import from URL
+        export [name]       Export nodes
+    
+    routing <action>     Routing management
+        get                 Get current routing mode
+        set <mode>          Set routing mode
+        set-node <type> <name>  Set routing node
+        rules               List routing rules
+        status              Show routing status
+    
+    dns <action>         DNS management
+        get                 Get DNS servers
+        set <server>        Set DNS server
+        set-china <server>  Set China DNS server
+        test [domain]       Test DNS resolution
+        cache <enable|disable>  DNS cache control
+        strategy            DNS strategy
+    
+    subscription <action> Subscription management
+        list                List subscriptions
+        add <url>           Add subscription
+        remove [url]        Remove subscription(s)
+        update              Update subscriptions
+        auto-update <on|off>  Toggle auto-update
+        filter <action>     Manage filter keywords
+        status              Show subscription status
+    
+    status               Show HomeProxy status
+    
+    log [type]           Show logs (homeproxy|sing-box-c|sing-box-s)
+    
+    control <action>     Service control
+        start              Start HomeProxy
+        stop               Stop HomeProxy
+        restart            Restart HomeProxy
+        status             Show service status
+    
+    features             Show sing-box features
+    
+    help                 Show this help
+
+Options:
+    -h, --help           Show this help
+    -j, --json           Output as JSON
+
+Examples:
+    homeproxy node list
+    homeproxy node set-main mynode
+    homeproxy routing set proxy_all
+    homeproxy status
+
+EOF
+    exit 0
+}
+
+# Main
+main() {
+    check_installed
+    
+    if [ $# -eq 0 ]; then
+        usage
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "$command" in
+        -h|--help|help)
+            usage
+            ;;
+        node)
+            load_module "node"
+            local action="$1"
+            shift
+            case "$action" in
+                list) node_list "$@" ;;
+                test) node_test "$@" ;;
+                set-main) node_set_main "$1" ;;
+                add) node_add "$@" ;;
+                remove) node_remove "$1" ;;
+                edit) node_edit "$@" ;;
+                import) node_import "$1" ;;
+                export) node_export "$@" ;;
+                *) usage ;;
+            esac
+            ;;
+        routing)
+            load_module "routing"
+            local action="$1"
+            shift
+            case "$action" in
+                get) routing_get ;;
+                set) routing_set "$1" ;;
+                set-node) routing_set_node "$1" "$2" ;;
+                rules) routing_rules_list ;;
+                status) routing_status ;;
+                *) usage ;;
+            esac
+            ;;
+        dns)
+            load_module "dns"
+            local action="$1"
+            shift
+            case "$action" in
+                get) dns_get ;;
+                set) dns_set "$1" ;;
+                set-china) dns_set_china "$1" ;;
+                test) dns_test "$1" "$2" ;;
+                cache) dns_cache "$1" ;;
+                strategy) dns_strategy "$1" ;;
+                status) dns_status ;;
+                *) usage ;;
+            esac
+            ;;
+        subscription)
+            load_module "subscription"
+            local action="$1"
+            shift
+            case "$action" in
+                list) subscription_list ;;
+                add) subscription_add "$1" ;;
+                remove) subscription_remove "$1" ;;
+                update) subscription_update ;;
+                auto-update) subscription_auto_update "$1" ;;
+                filter) subscription_filter "$@" ;;
+                status) subscription_status ;;
+                *) usage ;;
+            esac
+            ;;
+        status)
+            show_status
+            ;;
+        log)
+            show_log "$@"
+            ;;
+        control)
+            service_control "$@"
+            ;;
+        features)
+            show_features
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            usage
+            ;;
+    esac
+}
+
+# Quick functions (implemented inline for speed)
+
+show_status() {
+    log_info "HomeProxy Status"
+    echo "=================="
+    
+    # Service status
+    if /etc/init.d/homeproxy status &>/dev/null; then
+        log_info "Service: RUNNING"
+    else
+        log_info "Service: NOT RUNNING"
+    fi
+    
+    # Main node
+    local main_node=$(uci get homeproxy.config.main_node 2>/dev/null)
+    if [ -n "$main_node" ] && [ "$main_node" != "nil" ]; then
+        local label=$(uci get homeproxy.${main_node}.label 2>/dev/null || echo "$main_node")
+        log_info "Main Node: $label"
+    else
+        log_info "Main Node: Not configured"
+    fi
+    
+    # Routing mode
+    local mode=$(uci get homeproxy.config.routing_mode 2>/dev/null)
+    log_info "Routing: $mode"
+    
+    # Version
+    local version=$(ubus call luci.homeproxy singbox_get_features '{}' 2>/dev/null | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+    if [ -n "$version" ]; then
+        log_info "Version: $version"
+    fi
+}
+
+show_log() {
+    local type="${1:-homeproxy}"
+    local log_file="/var/run/homeproxy/${type}.log"
+    
+    if [ -f "$log_file" ]; then
+        tail -n 50 "$log_file"
+    else
+        log_error "Log file not found: $log_file"
+    fi
+}
+
+service_control() {
+    local action="$1"
+    
+    require_root
+    
+    case "$action" in
+        start)
+            /etc/init.d/homeproxy start
+            log_info "HomeProxy started"
+            ;;
+        stop)
+            /etc/init.d/homeproxy stop
+            log_info "HomeProxy stopped"
+            ;;
+        restart)
+            /etc/init.d/homeproxy restart
+            log_info "HomeProxy restarted"
+            ;;
+        status)
+            /etc/init.d/homeproxy status
+            ;;
+        *)
+            log_error "Usage: homeproxy control <start|stop|restart|status>"
+            exit 1
+            ;;
+    esac
+}
+
+show_features() {
+    log_info "Sing-box Features"
+    echo "==================="
+    ubus call luci.homeproxy singbox_get_features '{}' 2>/dev/null | python3 -m json.tool 2>/dev/null || \
+        ubus call luci.homeproxy singbox_get_features '{}'
+}
+
+main "$@"
