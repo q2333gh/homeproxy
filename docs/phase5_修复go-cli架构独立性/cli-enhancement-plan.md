@@ -194,7 +194,7 @@ homeproxy-cli/
 
 ## 六、Go CLI 实现 (cli-go/)
 
-CLI 已用 Go 实现于 `cli-go/`，可通过 `./cli/install.sh` 安装。安装脚本在有 Go 时优先构建并安装 Go 版 CLI，否则回退到 shell 版。
+CLI 已用 Go 实现于 `cli-go/`。构建: `go build`；安装: `go install` 或 `cp`；补全: `homeproxy completion bash`。
 
 **命令**: `homeproxy status|node|routing|dns|subscription|control|log|features`，详见 `homeproxy help`。
 

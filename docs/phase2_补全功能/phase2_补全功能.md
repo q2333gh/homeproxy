@@ -1,6 +1,6 @@
 # Phase 2: Go CLI 功能补全核查
 
-> 事实来源：`root/usr/share/rpcd/ucode/luci.homeproxy`、`docs/api-reference.md`、`cli-go/`、`cli/`
+> 事实来源：`root/usr/share/rpcd/ucode/luci.homeproxy`、`docs/api-reference.md`、`cli-go/`
 
 ---
 
