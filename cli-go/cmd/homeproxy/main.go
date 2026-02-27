@@ -43,6 +43,14 @@ func run(args []string) error {
 		return logCommand(subArgs)
 	case "features":
 		return featuresCommand()
+	case "resources":
+		return resourcesCommand(subArgs)
+	case "acl":
+		return aclCommand(subArgs)
+	case "cert":
+		return certCommand(subArgs)
+	case "generator":
+		return generatorCommand(subArgs)
 	default:
 		printUsage()
 		return fmt.Errorf("unknown command: %s", command)
@@ -69,6 +77,7 @@ Commands:
         get                 Get current routing mode
         set <mode>          Set routing mode
         set-node <type> <name>  Set routing node
+        rules               Show routing rules
         status              Show routing status
     
     dns <action>         DNS management
@@ -92,6 +101,7 @@ Commands:
     status               Show HomeProxy status
     
     log [type]           Show logs (homeproxy|sing-box-c|sing-box-s)
+    log clean [type]     Clear log file
     
     control <action>     Service control
         start              Start HomeProxy
@@ -100,6 +110,18 @@ Commands:
         status             Show service status
     
     features             Show sing-box features
+    
+    resources <action>   Resource management
+        version [type]   Show resource version (china_ip4, china_ip6, china_list, gfw_list)
+        update <type>    Update resource
+    
+    acl <action>        ACL list management
+        list <type>     List direct_list or proxy_list content
+        write <type> --file <path>  Write ACL from file
+    
+    cert write <filename> --file <path>  Write certificate (client_ca, server_publickey, server_privatekey)
+    
+    generator <type> [params]  Generate keys (uuid, reality-keypair, wg-keypair, vapid-keypair, ech-keypair)
 
 Options:
     -h, --help           Show this help

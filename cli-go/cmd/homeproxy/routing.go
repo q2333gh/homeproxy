@@ -18,7 +18,7 @@ func routingCommand(args []string) error {
 	}
 
 	if len(args) == 0 {
-		return fmt.Errorf("usage: homeproxy routing <get|set|set-node|status> [options]")
+		return fmt.Errorf("usage: homeproxy routing <get|set|set-node|rules|status> [options]")
 	}
 	action := args[0]
 	rest := args[1:]
@@ -30,6 +30,8 @@ func routingCommand(args []string) error {
 		return routingSet(rest)
 	case "set-node":
 		return routingSetNode(rest)
+	case "rules":
+		return routingRules()
 	case "status":
 		return routingStatus()
 	default:
@@ -107,6 +109,18 @@ func routingSetNode(args []string) error {
 		return err
 	}
 	logInfo("Routing node set: " + nodeType + " = " + nodeName)
+	return nil
+}
+
+func routingRules() error {
+	logInfo("Routing Rules")
+	fmt.Println("==============")
+	defaultOut, _ := system.UCIGet("homeproxy.routing.default_outbound")
+	defaultDNS, _ := system.UCIGet("homeproxy.routing.default_outbound_dns")
+	sniffOverride, _ := system.UCIGet("homeproxy.routing.sniff_override")
+	fmt.Println("Default Outbound:", defaultOut)
+	fmt.Println("Default Outbound DNS:", defaultDNS)
+	fmt.Println("Sniff Override:", sniffOverride)
 	return nil
 }
 
