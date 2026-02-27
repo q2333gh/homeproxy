@@ -51,6 +51,8 @@ func run(args []string) error {
 		return certCommand(subArgs)
 	case "generator":
 		return generatorCommand(subArgs)
+	case "completion":
+		return completionCommand(subArgs)
 	default:
 		printUsage()
 		return fmt.Errorf("unknown command: %s", command)
@@ -122,6 +124,8 @@ Commands:
     cert write <filename> --file <path>  Write certificate (client_ca, server_publickey, server_privatekey)
     
     generator <type> [params]  Generate keys (uuid, reality-keypair, wg-keypair, vapid-keypair, ech-keypair)
+    
+    completion bash            Output bash completion script
 
 Options:
     -h, --help           Show this help`)
