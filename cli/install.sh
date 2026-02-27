@@ -2,13 +2,15 @@
 #
 # HomeProxy CLI Install Script
 #
+# Prefers Go CLI (cli-go/) when Go is available; falls back to shell CLI.
+#
 
 set -e
 
 INSTALL_DIR="/usr/libexec/homeproxy"
 BIN_DIR="/usr/bin"
-MAN_DIR="/usr/share/man/man1"
 CONFIG_DIR="/etc/homeproxy"
+SCRIPT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 log_info() {
     echo "[INFO] $1"
@@ -26,29 +28,37 @@ fi
 
 log_info "Installing HomeProxy CLI..."
 
-# Create directories
-mkdir -p "$INSTALL_DIR/lib"
 mkdir -p "$CONFIG_DIR"
 
-# Install library
-log_info "Installing library..."
-cp lib/homeproxy.sh "$INSTALL_DIR/lib.sh"
+# Prefer Go CLI if build succeeds
+if command -v go >/dev/null 2>&1; then
+    if (cd "$SCRIPT_ROOT/cli-go" && go build -o homeproxy ./cmd/homeproxy) 2>/dev/null; then
+        log_info "Installing Go CLI..."
+        cp "$SCRIPT_ROOT/cli-go/homeproxy" "$BIN_DIR/homeproxy"
+        chmod +x "$BIN_DIR/homeproxy"
+    else
+        log_info "Go build failed, installing shell CLI..."
+        install_shell_cli
+    fi
+else
+    log_info "Go not found, installing shell CLI..."
+    install_shell_cli
+fi
 
-# Install modules
-log_info "Installing modules..."
-cp lib/node.sh "$INSTALL_DIR/lib/"
-cp lib/routing.sh "$INSTALL_DIR/lib/"
-cp lib/dns.sh "$INSTALL_DIR/lib/"
-cp lib/subscription.sh "$INSTALL_DIR/lib/"
-
-# Install main script
-log_info "Installing main script..."
-cp cli/homeproxy "$BIN_DIR/homeproxy"
-chmod +x "$BIN_DIR/homeproxy"
+install_shell_cli() {
+    mkdir -p "$INSTALL_DIR/lib"
+    cp "$SCRIPT_ROOT/cli/lib/homeproxy.sh" "$INSTALL_DIR/lib.sh"
+    cp "$SCRIPT_ROOT/cli/lib/node.sh" "$INSTALL_DIR/lib/"
+    cp "$SCRIPT_ROOT/cli/lib/routing.sh" "$INSTALL_DIR/lib/"
+    cp "$SCRIPT_ROOT/cli/lib/dns.sh" "$INSTALL_DIR/lib/"
+    cp "$SCRIPT_ROOT/cli/lib/subscription.sh" "$INSTALL_DIR/lib/"
+    cp "$SCRIPT_ROOT/cli/homeproxy" "$BIN_DIR/homeproxy"
+    chmod +x "$BIN_DIR/homeproxy"
+}
 
 # Install configuration
 log_info "Installing configuration..."
-cp etc/homeproxy.conf "$CONFIG_DIR/cli.conf"
+cp "$SCRIPT_ROOT/cli/etc/homeproxy.conf" "$CONFIG_DIR/cli.conf"
 
 # Create bash completion
 log_info "Installing bash completion..."
@@ -72,7 +82,7 @@ _homeproxy() {
                     COMPREPLY=($(compgen -W "list test set-main add remove edit import export" -- ${cur}))
                     ;;
                 routing)
-                    COMPREPLY=($(compgen -W "get set set-node rules status" -- ${cur}))
+                    COMPREPLY=($(compgen -W "get set set-node status" -- ${cur}))
                     ;;
                 dns)
                     COMPREPLY=($(compgen -W "get set set-china status test cache strategy" -- ${cur}))
@@ -84,7 +94,7 @@ _homeproxy() {
                     COMPREPLY=($(compgen -W "homeproxy sing-box-c sing-box-s" -- ${cur}))
                     ;;
                 control)
-                    COMPREPLY=($(compgen -W "start stop restart" -- ${cur}))
+                    COMPREPLY=($(compgen -W "start stop restart status" -- ${cur}))
                     ;;
             esac
             ;;

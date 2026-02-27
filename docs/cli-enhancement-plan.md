@@ -192,7 +192,17 @@ homeproxy-cli/
 
 ---
 
-## 六、参考资源
+## 六、Go CLI 实现 (cli-go/)
+
+CLI 已用 Go 实现于 `cli-go/`，可通过 `./cli/install.sh` 安装。安装脚本在有 Go 时优先构建并安装 Go 版 CLI，否则回退到 shell 版。
+
+**命令**: `homeproxy status|node|routing|dns|subscription|control|log|features`，详见 `homeproxy help`。
+
+**构建**: `cd cli-go && go build -o homeproxy ./cmd/homeproxy`
+
+---
+
+## 七、参考资源
 
 - HomeProxy 源码: `~/code/homeproxy/`
 - UCI 文档: https://openwrt.org/docs/guide-user/base-system/uci
