@@ -24,6 +24,18 @@ homeproxy completion bash | sudo tee /etc/bash_completion.d/homeproxy
 source <(homeproxy completion bash)
 ```
 
+## 文档生成
+
+```bash
+# 输出到 stdout
+homeproxy docs
+
+# 写入文件（目录不存在时会自动创建）
+homeproxy docs --out docs/CLI_REFERENCE.md
+```
+
+帮助与 Markdown 文档均从源码元数据生成（from-first-src），无需手写。
+
 ## 测试
 
 ```bash
