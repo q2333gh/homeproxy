@@ -2,3 +2,5 @@
 cli-go/bin/
 cli-go/homeproxy
 cli-go/homeproxy.exe
+
+p_doc/
