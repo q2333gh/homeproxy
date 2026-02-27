@@ -7,8 +7,14 @@ import (
 	"strings"
 )
 
-// runCommand executes a command and returns trimmed stdout or an error that includes stderr.
+// RunCommandImpl is the command runner. Tests set it to a mock.
+var RunCommandImpl = execRunCommand
+
 func runCommand(name string, args ...string) (string, error) {
+	return RunCommandImpl(name, args...)
+}
+
+func execRunCommand(name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
 
 	var stdout, stderr bytes.Buffer

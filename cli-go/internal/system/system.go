@@ -15,8 +15,14 @@ const (
 	RPCObject = "luci.homeproxy"
 )
 
+// CheckInstalledFunc, when non-nil, overrides CheckInstalled. Tests use this to bypass the config file check.
+var CheckInstalledFunc func() error
+
 // CheckInstalled verifies that the HomeProxy UCI config exists.
 func CheckInstalled() error {
+	if CheckInstalledFunc != nil {
+		return CheckInstalledFunc()
+	}
 	if _, err := os.Stat(ConfigFile); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("HomeProxy is not installed (missing %s)", ConfigFile)
