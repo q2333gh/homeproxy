@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"homeproxy-cli/internal/system"
 )
@@ -12,8 +11,8 @@ func controlCommand(args []string) error {
 		return err
 	}
 
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 
 	if len(args) == 0 {
