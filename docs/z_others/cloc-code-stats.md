@@ -16,10 +16,11 @@ brew install cloc
 
 在项目根目录执行：
 
-### 1. 全项目统计（含 sing-box-ref）
+### 1. 全项目统计（排除 sing-box-ref 子模块）
 
 ```bash
-cloc .
+cloc . --exclude-dir=sing-box-ref > docs/z_others/homeproxy_cloc.md
+```
 ```
 
 ### 2. 仅 homeproxy 核心代码（cli-go / root / htdocs / docs / po）
