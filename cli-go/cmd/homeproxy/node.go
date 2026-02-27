@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -179,8 +178,8 @@ func nodeTest(args []string) error {
 }
 
 func nodeSetMain(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 || args[0] == "" {
 		return fmt.Errorf("node name required")
@@ -194,10 +193,7 @@ func nodeSetMain(args []string) error {
 	if err := system.UCISet("homeproxy.config.main_node", id); err != nil {
 		return err
 	}
-	if err := system.UCICommit("homeproxy"); err != nil {
-		return err
-	}
-	if err := system.ServiceReload(); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	logInfo("Main node set to: " + args[0])
@@ -210,8 +206,8 @@ func validatePort(port string) bool {
 }
 
 func nodeAdd(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) < 3 {
 		return fmt.Errorf("usage: homeproxy node add <type> <address> <port> [label]")
@@ -222,12 +218,7 @@ func nodeAdd(args []string) error {
 		label = strings.Join(args[3:], " ")
 	}
 
-	validTypes := map[string]bool{
-		"vmess": true, "vless": true, "trojan": true, "shadowsocks": true,
-		"hysteria": true, "hysteria2": true, "socks": true, "http": true,
-		"tuic": true, "wireguard": true, "direct": true,
-	}
-	if !validTypes[typ] {
+	if _, ok := nodeTypes[typ]; !ok {
 		return fmt.Errorf("invalid node type: %s", typ)
 	}
 	if !validatePort(port) {
@@ -257,7 +248,7 @@ func nodeAdd(args []string) error {
 		}
 	}
 
-	if err := system.UCICommit("homeproxy"); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	logInfo(fmt.Sprintf("Node added (%s:%s). Use label or section ID with 'homeproxy node set-main' to activate.", addr, port))
@@ -265,8 +256,8 @@ func nodeAdd(args []string) error {
 }
 
 func nodeRemove(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 || args[0] == "" {
 		return fmt.Errorf("node name required")
@@ -287,10 +278,7 @@ func nodeRemove(args []string) error {
 	if err := system.UCIDelete("homeproxy." + id); err != nil {
 		return err
 	}
-	if err := system.UCICommit("homeproxy"); err != nil {
-		return err
-	}
-	if err := system.ServiceReload(); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	logInfo("Node removed: " + args[0])
@@ -298,8 +286,8 @@ func nodeRemove(args []string) error {
 }
 
 func nodeEdit(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) < 2 {
 		return fmt.Errorf("usage: homeproxy node edit <name> <key> <value>")
@@ -315,10 +303,7 @@ func nodeEdit(args []string) error {
 	if err := system.UCISet("homeproxy."+id+"."+key, value); err != nil {
 		return err
 	}
-	if err := system.UCICommit("homeproxy"); err != nil {
-		return err
-	}
-	if err := system.ServiceReload(); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	logInfo(fmt.Sprintf("Node %s updated: %s = %s", args[0], key, value))
@@ -326,8 +311,8 @@ func nodeEdit(args []string) error {
 }
 
 func nodeImport(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 || args[0] == "" {
 		return fmt.Errorf("subscription URL required")
@@ -341,7 +326,7 @@ func nodeImport(args []string) error {
 	if err := system.UCIAddList("homeproxy.subscription.subscription_url", url); err != nil {
 		return err
 	}
-	if err := system.UCICommit("homeproxy"); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	logInfo("Subscription added. Run 'homeproxy subscription update' to import nodes.")

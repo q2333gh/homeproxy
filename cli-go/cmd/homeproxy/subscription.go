@@ -66,8 +66,8 @@ func subscriptionList() error {
 }
 
 func subscriptionAdd(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 || args[0] == "" {
 		return fmt.Errorf("subscription URL required")
@@ -88,7 +88,7 @@ func subscriptionAdd(args []string) error {
 	if err := system.UCIAddList("homeproxy.subscription.subscription_url", url); err != nil {
 		return err
 	}
-	if err := system.UCICommit("homeproxy"); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	logInfo("Subscription added: " + url)
@@ -96,8 +96,8 @@ func subscriptionAdd(args []string) error {
 }
 
 func subscriptionRemove(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 
 	if len(args) == 0 || args[0] == "" {
@@ -124,7 +124,7 @@ func subscriptionRemove(args []string) error {
 		}
 	}
 
-	if err := system.UCICommit("homeproxy"); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	logInfo("Subscription removed")
@@ -132,8 +132,8 @@ func subscriptionRemove(args []string) error {
 }
 
 func subscriptionUpdate() error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 
 	if _, err := os.Stat(updateScript); os.IsNotExist(err) {
@@ -154,8 +154,8 @@ func subscriptionUpdate() error {
 }
 
 func subscriptionAutoUpdate(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 {
 		return fmt.Errorf("usage: homeproxy subscription auto-update <enable|disable>")
@@ -178,7 +178,7 @@ func subscriptionAutoUpdate(args []string) error {
 	if err := system.UCISet("homeproxy.subscription.auto_update", val); err != nil {
 		return err
 	}
-	if err := system.UCICommit("homeproxy"); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	if enable {
@@ -190,8 +190,8 @@ func subscriptionAutoUpdate(args []string) error {
 }
 
 func subscriptionFilter(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 {
 		return fmt.Errorf("usage: homeproxy subscription filter <add|remove|list|clear> [keyword]")
@@ -249,7 +249,7 @@ func subscriptionFilter(args []string) error {
 		return fmt.Errorf("usage: homeproxy subscription filter <add|remove|list|clear> [keyword]")
 	}
 
-	return system.UCICommit("homeproxy")
+	return uciCommitAndReload()
 }
 
 func subscriptionStatus() error {

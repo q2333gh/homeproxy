@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -63,46 +62,29 @@ func dnsGet() error {
 }
 
 func dnsSet(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
-	}
-	if len(args) == 0 || args[0] == "" {
-		return fmt.Errorf("DNS server required")
-	}
-	server := args[0]
-
-	if err := system.UCISet("homeproxy.config.dns_server", server); err != nil {
-		return err
-	}
-	if err := system.UCICommit("homeproxy"); err != nil {
-		return err
-	}
-	if err := system.ServiceReload(); err != nil {
-		return err
-	}
-	logInfo("DNS server set to: " + server)
-	return nil
+	return dnsSetServer(args, "homeproxy.config.dns_server", "DNS server")
 }
 
 func dnsSetChina(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	return dnsSetServer(args, "homeproxy.config.china_dns_server", "China DNS server")
+}
+
+func dnsSetServer(args []string, uciPath, label string) error {
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 || args[0] == "" {
-		return fmt.Errorf("China DNS server required")
+		return fmt.Errorf("%s required", label)
 	}
 	server := args[0]
 
-	if err := system.UCISet("homeproxy.config.china_dns_server", server); err != nil {
+	if err := system.UCISet(uciPath, server); err != nil {
 		return err
 	}
-	if err := system.UCICommit("homeproxy"); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
-	if err := system.ServiceReload(); err != nil {
-		return err
-	}
-	logInfo("China DNS server set to: " + server)
+	logInfo(label + " set to: " + server)
 	return nil
 }
 
@@ -149,8 +131,8 @@ func dnsTest(args []string) error {
 }
 
 func dnsCache(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 {
 		return fmt.Errorf("usage: homeproxy dns cache <enable|disable>")
@@ -169,15 +151,12 @@ func dnsCache(args []string) error {
 	default:
 		return fmt.Errorf("usage: homeproxy dns cache <enable|disable>")
 	}
-	if err := system.UCICommit("homeproxy"); err != nil {
-		return err
-	}
-	return system.ServiceReload()
+	return uciCommitAndReload()
 }
 
 func dnsStrategy(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 || args[0] == "" {
 		current, _ := system.UCIGet("homeproxy.dns.dns_strategy")
@@ -192,10 +171,7 @@ func dnsStrategy(args []string) error {
 	if err := system.UCISet("homeproxy.dns.dns_strategy", strategy); err != nil {
 		return err
 	}
-	if err := system.UCICommit("homeproxy"); err != nil {
-		return err
-	}
-	if err := system.ServiceReload(); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	logInfo("DNS strategy set to: " + strategy)

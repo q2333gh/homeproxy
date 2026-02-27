@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"homeproxy-cli/internal/system"
 )
@@ -51,8 +50,8 @@ func routingGet() error {
 }
 
 func routingSet(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 || args[0] == "" {
 		return fmt.Errorf("mode required. Available: bypass_mainland_china, proxy_mainland_china, proxy_all, direct_all, custom")
@@ -65,10 +64,7 @@ func routingSet(args []string) error {
 	if err := system.UCISet("homeproxy.config.routing_mode", mode); err != nil {
 		return err
 	}
-	if err := system.UCICommit("homeproxy"); err != nil {
-		return err
-	}
-	if err := system.ServiceReload(); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	logInfo("Routing mode set to: " + mode)
@@ -76,8 +72,8 @@ func routingSet(args []string) error {
 }
 
 func routingSetNode(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) < 2 {
 		return fmt.Errorf("usage: homeproxy routing set-node <main|udp> <node_name>")
@@ -102,10 +98,7 @@ func routingSetNode(args []string) error {
 		return fmt.Errorf("invalid node type: %s (use: main or udp)", nodeType)
 	}
 
-	if err := system.UCICommit("homeproxy"); err != nil {
-		return err
-	}
-	if err := system.ServiceReload(); err != nil {
+	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
 	logInfo("Routing node set: " + nodeType + " = " + nodeName)
