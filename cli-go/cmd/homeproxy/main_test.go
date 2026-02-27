@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
@@ -80,6 +81,25 @@ func TestStatus(t *testing.T) {
 	})
 }
 
+func TestStatusJSON(t *testing.T) {
+	mock := &testutil.MockRunner{Status: "running"}
+	withMock(t, mock, func() {
+		stdout, stderr, err := captureOutput(func() error { return run([]string{"status", "--json"}) })
+		if err != nil {
+			t.Fatalf("status --json: %v", err)
+		}
+		if stderr != "" {
+			t.Errorf("expected no stderr for --json, got: %s", stderr)
+		}
+		if !strings.Contains(stdout, `"service":"running"`) {
+			t.Errorf("expected service in JSON, got: %s", stdout)
+		}
+		if !strings.Contains(stdout, `"main_node"`) || !strings.Contains(stdout, `"routing"`) {
+			t.Errorf("expected main_node and routing in JSON, got: %s", stdout)
+		}
+	})
+}
+
 func TestFeatures(t *testing.T) {
 	mock := &testutil.MockRunner{}
 	withMock(t, mock, func() {
@@ -128,6 +148,55 @@ func TestGeneratorUUID(t *testing.T) {
 		}
 		if !strings.Contains(stdout, "uuid") || !strings.Contains(stdout, "xxxx") {
 			t.Errorf("expected uuid output, got: %s", stdout)
+		}
+	})
+}
+
+func TestNodeListJSON(t *testing.T) {
+	mock := &testutil.MockRunner{}
+	withMock(t, mock, func() {
+		stdout, stderr, err := captureOutput(func() error { return run([]string{"node", "list", "--json"}) })
+		if err != nil {
+			t.Fatalf("node list --json: %v", err)
+		}
+		if stderr != "" {
+			t.Errorf("expected no stderr for --json, got: %s", stderr)
+		}
+		var out struct {
+			Nodes []struct {
+				Name   string `json:"name"`
+				Status string `json:"status"`
+			} `json:"nodes"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+			t.Fatalf("invalid JSON: %v\noutput: %s", err, stdout)
+		}
+		// Structure must be valid; mock may return empty nodes
+		if out.Nodes == nil {
+			t.Errorf("expected nodes field (can be empty slice), got nil")
+		}
+	})
+}
+
+func TestSubscriptionListJSON(t *testing.T) {
+	mock := &testutil.MockRunner{}
+	withMock(t, mock, func() {
+		stdout, stderr, err := captureOutput(func() error { return run([]string{"subscription", "list", "--json"}) })
+		if err != nil {
+			t.Fatalf("subscription list --json: %v", err)
+		}
+		if stderr != "" {
+			t.Errorf("expected no stderr for --json, got: %s", stderr)
+		}
+		var out struct {
+			Subscriptions []string `json:"subscriptions"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+			t.Fatalf("invalid JSON: %v\noutput: %s", err, stdout)
+		}
+		// Mock may return empty list; structure must be valid
+		if out.Subscriptions == nil {
+			t.Errorf("expected subscriptions field (can be empty slice), got nil")
 		}
 	})
 }
