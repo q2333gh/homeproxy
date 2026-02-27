@@ -1,132 +1,127 @@
-# Go CLI 如何控制 HomeProxy —— 架构与原理
+# Go CLI 如何控制 HomeProxy —— 分层架构
 
 ## 一、为什么 Go CLI 能控制 HomeProxy？
 
-Go CLI **不是**直接控制 sing-box 或 HomeProxy 核心。它通过 **OpenWrt 已有的系统接口** 与 HomeProxy 交互，与 LuCI Web 界面使用完全相同的底层通道。
-
-安装 HomeProxy 后，路由器上会部署：
-
-| 组件 | 路径/对象 | 作用 |
-|------|-----------|------|
-| UCI 配置 | `/etc/config/homeproxy` | 存储节点、路由、DNS 等配置 |
-| 服务脚本 | `/etc/init.d/homeproxy` | 启动/停止 sing-box，应用配置 |
-| RPC 后端 | `ubus` 对象 `luci.homeproxy` | 实现资源管理、ACL、证书、连接检测等 |
-
-Go CLI 通过 **shell 调用** 这三个接口：
-
-```
-homeproxy status  →  uci get / init.d status / ubus call luci.homeproxy singbox_get_features
-homeproxy control start  →  /etc/init.d/homeproxy start
-homeproxy node set-main X  →  uci set homeproxy.config.main_node=X && uci commit && init.d reload
-```
-
-也就是说：**Go CLI 是 UCI / init.d / ubus 的客户端**，与 LuCI Web UI 调用的是同一套接口。
+Go CLI **不直接**操作 sing-box 或 HomeProxy 核心，而是作为 **OpenWrt 系统接口的客户端** 间接控制。
+与 LuCI Web 共用同一套底层通道（UCI、ubus、init.d , 且未修改原homeproxy,只是进行了go-cli封装）。
 
 ---
 
-## 二、Go CLI 架构
+## 二、四层架构
 
-### 2.1 目录结构
+自上而下：**Go CLI 层 → OpenWrt 层 → HomeProxy 执行层 → OS 层**。
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  L1: Go CLI 层                                                           │
+│  homeproxy 二进制、main.go、命令处理、internal/system                     │
+└──────────────────────────────────────┬──────────────────────────────────┘
+                                       │ os/exec (uci, ubus, init.d)
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  L2: OpenWrt 层                                                          │
+│  uci / ubus / rpcd / init.d（OpenWrt 系统工具与服务）                     │
+└──────────────────────────────────────┬──────────────────────────────────┘
+                                       │ 配置读写 / RPC 调用 / 进程控制
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  L3: HomeProxy 执行层                                                    │
+│  /etc/config/homeproxy | luci.homeproxy RPC | /etc/init.d/homeproxy     │
+│  配置、脚本、ucode 后端                                                  │
+└──────────────────────────────────────┬──────────────────────────────────┘
+                                       │ 读写文件 / 起停进程
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  L4: OS 层                                                               │
+│  /etc/config/homeproxy、/var/run/homeproxy/*.log、sing-box 进程          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 三、各层职责
+
+### L1: Go CLI 层
+
+| 组件 | 职责 |
+|------|------|
+| `cmd/homeproxy/*.go` | 命令路由、参数解析、调用 system 适配 |
+| `internal/system` | UCIGet/UCISet/UBUSCall/Service*，封装 `os/exec` |
+| `runCommand` | 执行 `uci`、`ubus`、`/etc/init.d/homeproxy` |
+
+### L2: OpenWrt 层
+
+| 工具/服务 | 职责 |
+|-----------|------|
+| `uci` | 读写 UCI 配置（get/set/show/add/delete/commit） |
+| `ubus` | 调用 RPC（`ubus call luci.homeproxy <method> '<params>'`） |
+| `rpcd` | 承载 `luci.homeproxy` 的 ucode 后端 |
+| `init.d` | 管理 procd 服务（start/stop/restart/reload/status） |
+
+### L3: HomeProxy 执行层
+
+| 组件 | 路径/对象 | 职责 |
+|------|-----------|------|
+| UCI 配置 | `/etc/config/homeproxy` | 节点、路由、DNS、订阅等配置 |
+| RPC 后端 | `luci.homeproxy` | 资源、ACL、证书、连接检测、密钥生成、日志清理 |
+| 服务脚本 | `/etc/init.d/homeproxy` | 生成 sing-box 配置，控制 sing-box 进程，防火墙规则 |
+
+### L4: OS 层
+
+| 资源 | 职责 |
+|------|------|
+| `/etc/config/homeproxy` | 配置持久化 |
+| `/var/run/homeproxy/*.log` | 日志文件 |
+| sing-box 进程 | 代理核心，由 init.d 起停 |
+| `/tmp`、`/usr/bin` 等 | 临时文件、二进制路径 |
+
+---
+
+## 四、调用链示例
+
+| CLI 命令 | L1 → L2 → L3 → L4 |
+|----------|-------------------|
+| `homeproxy status` | Go CLI → `uci get` + `init.d status` + `ubus singbox_get_features` → 配置/状态/RPC → 文件/进程 |
+| `homeproxy control start` | Go CLI → `/etc/init.d/homeproxy start` → init.d → 启动 sing-box |
+| `homeproxy node set-main X` | Go CLI → `uci set` + `uci commit` + `init.d reload` → UCI → 写配置并重载 sing-box |
+| `homeproxy log [type]` | Go CLI → `os.ReadFile` → 直接读 `/var/run/homeproxy/<type>.log`（跳过 L2/L3） |
+| `homeproxy features` | Go CLI → `ubus call luci.homeproxy singbox_get_features` → rpcd → ucode 后端 |
+
+---
+
+## 五、目录与接口映射
+
+### Go CLI 目录结构
 
 ```
 cli-go/
-├── cmd/homeproxy/           # 主程序
-│   ├── main.go              # 入口、命令路由
-│   ├── status.go            # status
-│   ├── control.go           # control start/stop/restart
-│   ├── log.go               # log [type] / log clean
-│   ├── features.go          # features
-│   ├── resources.go         # resources version/update
-│   ├── acl.go               # acl list/write
-│   ├── cert.go              # cert write
-│   ├── generator.go         # generator uuid/reality-keypair/...
-│   ├── node.go              # node list/test/set-main/add/remove/...
-│   ├── routing.go           # routing get/set/set-node/rules/status
-│   ├── dns.go               # dns get/set/set-china/test/cache/...
-│   ├── subscription.go      # subscription list/add/remove/update/...
-│   ├── args.go              # 参数解析 helpers
-│   └── logging.go           # logInfo/logWarn
-├── internal/system/         # 系统适配层
-│   ├── exec.go              # runCommand (可注入，供测试 mock)
-│   └── system.go            # CheckInstalled, UCI*, UBUSCall, Service*...
-├── testutil/
-│   └── mock.go              # 测试用 mock runner (LuCI API 契约)
-└── go.mod
+├── cmd/homeproxy/      # L1 命令实现
+├── internal/system/    # L1→L2 适配（runCommand 封装）
+└── testutil/mock.go    # 测试时 mock L2 调用
 ```
 
-### 2.2 数据流与架构图
+### CLI 命令到接口映射
 
-```
-                         ┌─────────────────────────────────────────┐
-                         │            homeproxy CLI                 │
-                         │              (Go binary)                 │
-                         └─────────────────┬───────────────────────┘
-                                           │
-                    ┌──────────────────────┼──────────────────────┐
-                    │                      │                      │
-                    ▼                      ▼                      ▼
-         ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-         │  internal/system │  │  internal/system │  │  internal/system │
-         │     UCIGet       │  │  UBUSCall(...)   │  │  ServiceStatus   │
-         │     UCISet       │  │                  │  │  ServiceStart    │
-         │     UCIShow      │  │                  │  │  ServiceReload   │
-         └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘
-                  │                     │                     │
-                  │    runCommand(name, args...)              │
-                  └─────────────────────┼─────────────────────┘
-                                       │
-                                       ▼
-                         ┌─────────────────────────────────────────┐
-                         │           os/exec.Command                │
-                         │    (uci | ubus | /etc/init.d/homeproxy)  │
-                         └─────────────────┬───────────────────────┘
-                                           │
-         ┌─────────────────────────────────┼─────────────────────────────────┐
-         │                                 │                                 │
-         ▼                                 ▼                                 ▼
-┌─────────────────┐            ┌─────────────────────┐            ┌─────────────────┐
-│   uci get/set   │            │ ubus call           │            │ /etc/init.d/    │
-│   show/commit   │            │ luci.homeproxy      │            │ homeproxy       │
-└────────┬────────┘            └──────────┬──────────┘            └────────┬────────┘
-         │                                │                                │
-         ▼                                ▼                                ▼
-┌─────────────────┐            ┌─────────────────────┐            ┌─────────────────┐
-│ /etc/config/    │            │ rpcd luci.homeproxy │            │ sing-box        │
-│ homeproxy       │            │ (资源/ACL/证书/     │            │ 进程 start/stop │
-│                 │            │  连接检测/生成器)   │            │ reload          │
-└─────────────────┘            └─────────────────────┘            └─────────────────┘
-```
-
-### 2.3 三大接口职责
-
-| 接口 | 命令 | 职责 | 示例 |
-|------|------|------|------|
-| **UCI** | `uci get/set/show/add/delete/commit` | 读写 `/etc/config/homeproxy` | 节点、路由模式、DNS、订阅 |
-| **ubus** | `ubus call luci.homeproxy <method> '<params>'` | 调用 LuCI RPC | 资源版本/更新、ACL、证书、连接检测、密钥生成、日志清理 |
-| **init.d** | `/etc/init.d/homeproxy start|stop|restart|reload|status` | 控制 sing-box 进程 | 启动、停止、重载配置 |
-
-### 2.4 命令到接口映射
-
-| CLI 命令 | 主要使用接口 |
-|----------|--------------|
-| `status` | init.d status, uci get, ubus singbox_get_features |
-| `control start/stop/restart` | init.d |
-| `log [type]` | 直接读 `/var/run/homeproxy/<type>.log` |
-| `log clean [type]` | ubus log_clean |
-| `features` | ubus singbox_get_features |
-| `resources version/update` | ubus resources_get_version / resources_update |
-| `acl list/write` | ubus acllist_read / acllist_write |
-| `cert write` | 文件拷贝 + ubus certificate_write |
-| `generator uuid/...` | ubus singbox_generator |
-| `node list/test/set-main/add/...` | uci + (test 时) ubus connection_check |
-| `routing get/set/set-node/rules` | uci |
-| `dns get/set/set-china/...` | uci |
-| `subscription list/add/remove/...` | uci (+ 更新脚本) |
+| CLI 命令 | 主要使用 L2 接口 |
+|----------|------------------|
+| status | init.d status, uci get, ubus singbox_get_features |
+| control | init.d |
+| log [type] | 直接读文件（L4） |
+| log clean | ubus log_clean |
+| features | ubus singbox_get_features |
+| resources | ubus resources_get_version / resources_update |
+| acl | ubus acllist_read / acllist_write |
+| cert | 文件 + ubus certificate_write |
+| generator | ubus singbox_generator |
+| node | uci + ubus connection_check |
+| routing | uci |
+| dns | uci |
+| subscription | uci (+ 更新脚本) |
 
 ---
 
-## 三、总结
+## 六、总结
 
-- Go CLI 是 **OpenWrt 系统接口的客户端**，不直接操作 sing-box。
-- 控制链路：`Go CLI → os/exec → uci | ubus | init.d → 配置/ RPC / sing-box`。
-- 设计原则：薄适配层 + 显式 shell 调用，逻辑清晰，易于测试（通过 mock `runCommand`）。
+- **分层**：Go CLI → OpenWrt（uci/ubus/init.d）→ HomeProxy（配置 + RPC + init 脚本）→ OS（文件、进程）
+- **控制链路**：`Go CLI → os/exec → uci | ubus | init.d → 配置/RPC/sing-box`
+- **设计原则**：薄适配层、显式 shell 调用、可 mock 测试

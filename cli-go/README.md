@@ -1,6 +1,6 @@
 # HomeProxy Go CLI
 
-Go 实现的 HomeProxy 命令行工具，无 shell 依赖。只二次封装 luci 层，对 homeproxy 底层无改动。
+Go 实现的 HomeProxy 命令行工具，无 shell 依赖。只二次封装 openwrt-luci 层，对 homeproxy 底层无改动。
 
 ## 构建
 
