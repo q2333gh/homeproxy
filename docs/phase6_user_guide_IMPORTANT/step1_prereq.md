@@ -81,7 +81,8 @@ opkg install sing-box firewall4 kmod-nft-tproxy ucode-mod-digest \
 
 ---
 
-## 六、用户需提供
+## 六、重要: 仅用户可以提供,agent无法帮助:用户需提供
+TODO: 高优先级: 减少必要提供,要准备默认规则集 dns 分流策略;第一性原理只需要用户提供订阅或者节点,其余全自动.
 
 运行透明代理前，用户需要准备：
 

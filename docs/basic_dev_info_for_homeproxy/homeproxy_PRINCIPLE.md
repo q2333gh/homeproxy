@@ -6,7 +6,9 @@
 
 ## 1. 项目定位
 
-- **是什么**：面向 ImmortalWrt/OpenWrt（ARM64/AMD64）的 LuCI 应用，提供“家庭代理平台”的配置与管理。
+- **是什么**：面向 路由器的openwrt系统 的 LuCI 应用，提供“家庭代理平台(透明代理)”的实现.
+
+
 - **核心依赖**：底层代理由 **sing-box** 执行；网络策略由 **firewall4** + **nftables** + **kmod-nft-tproxy** 实现；配置生成与脚本使用 **ucode**。
 - **典型用途**：在路由器上作为透明代理客户端（可选服务端），实现按规则分流（如绕过大陆、GFW 列表、全局代理、自定义规则等）。
 
@@ -22,7 +24,7 @@
 
 1. **项目定位**：OpenWrt/ImmortalWrt 上的 LuCI 代理平台，基于 sing-box + firewall4 + nftables。
 2. **整体架构**：LuCI → UCI → init 脚本 → 生成 sing-box 配置与 nft 规则 → 跑 sing-box 客户端/服务端并加载防火墙。
-3. **UCI 配置模型**：infra、config、control、routing、dns、subscription、server、node 等各自负责的配置与用途。
+3. **UCI 配置模型**：infra、config、control、routing、dns、subscription、server、node 等各自负责的配置与用途。(uci 概念: OpenWrt 的统一配置存储与读写接口 )
 4. **init 启动流程**：生成并校验客户端配置、配置 cron 订阅、写 DNSMasq、设路由/TUN、起 sing-box、写防火墙、日志清理等步骤。
 5. **generate_client.uc**：从 UCI 生成完整 sing-box 客户端 JSON（DNS、入站、出站、路由、规则集等）。
 6. **generate_server.uc**：从 UCI server 段生成服务端 JSON（仅 log + inbounds）。
@@ -70,6 +72,7 @@
 - **运行目录**：`/var/run/homeproxy` 存放生成的 `sing-box-c.json`、`sing-box-s.json`、日志及防火墙片段；`/etc/homeproxy` 存放脚本、资源列表、证书等。
 
 ---
+
 
 ## 3. 配置模型（UCI）在做什么
 
