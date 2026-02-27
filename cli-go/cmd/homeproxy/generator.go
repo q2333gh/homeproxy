@@ -19,8 +19,8 @@ func generatorCommand(args []string) error {
 		return fmt.Errorf("usage: homeproxy generator <type> [params] (uuid, reality-keypair, wg-keypair, vapid-keypair, ech-keypair)")
 	}
 	typ := args[0]
-	if !containsString(generatorTypes, typ) {
-		return fmt.Errorf("invalid type: %s (use: uuid, reality-keypair, wg-keypair, vapid-keypair, ech-keypair)", typ)
+	if err := validateOneOf(typ, generatorTypes, "type"); err != nil {
+		return err
 	}
 	params := ""
 	if len(args) > 1 {
