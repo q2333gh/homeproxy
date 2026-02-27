@@ -25,7 +25,7 @@ func dnsCommand(args []string) error {
 
 	switch action {
 	case "get":
-		return dnsGet()
+		return dnsGet(rest)
 	case "set":
 		return dnsSet(rest)
 	case "set-china":
@@ -43,7 +43,14 @@ func dnsCommand(args []string) error {
 	}
 }
 
-func dnsGet() error {
+type dnsGetJSON struct {
+	DNSServer string `json:"dns_server"`
+	ChinaDNS  string `json:"china_dns_server"`
+	Strategy  string `json:"strategy"`
+	Cache     string `json:"cache"`
+}
+
+func dnsGet(args []string) error {
 	dns, _ := system.UCIGet("homeproxy.config.dns_server")
 	chinaDNS, _ := system.UCIGet("homeproxy.config.china_dns_server")
 	strategy, _ := system.UCIGet("homeproxy.dns.dns_strategy")
@@ -52,6 +59,17 @@ func dnsGet() error {
 	cacheStatus := "enabled"
 	if disableCache == "1" {
 		cacheStatus = "disabled"
+	}
+
+	_, useJSON := parseJSONFlag(args)
+	if useJSON {
+		out := dnsGetJSON{
+			DNSServer: dns,
+			ChinaDNS:  chinaDNS,
+			Strategy:  strategy,
+			Cache:     cacheStatus,
+		}
+		return writeJSON(out)
 	}
 
 	fmt.Println("DNS Server:", dns)
@@ -181,7 +199,7 @@ func dnsStrategy(args []string) error {
 func dnsStatus() error {
 	logInfo("DNS Status")
 	fmt.Println("===========")
-	dnsGet()
+	dnsGet(nil)
 	fmt.Println()
 	logInfo("Testing DNS...")
 	return dnsTest([]string{"google.com", "8.8.8.8"})

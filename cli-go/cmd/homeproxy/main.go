@@ -28,7 +28,7 @@ func run(args []string) error {
 
 	switch command {
 	case "status":
-		return statusCommand()
+		return statusCommand(subArgs)
 	case "node":
 		return nodeCommand(subArgs)
 	case "routing":
@@ -81,5 +81,6 @@ func printUsage() {
 	}
 	fmt.Println("Options:")
 	fmt.Println("    -h, --help           Show this help")
+	fmt.Println("    --json               Machine-readable JSON output (status, node list, subscription list, routing get, dns get)")
 }
 

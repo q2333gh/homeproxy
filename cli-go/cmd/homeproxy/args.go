@@ -1,5 +1,17 @@
 package main
 
+// parseJSONFlag strips --json from args and returns (remaining args, true if --json was present).
+func parseJSONFlag(args []string) (rest []string, useJSON bool) {
+	for _, a := range args {
+		if a == "--json" {
+			useJSON = true
+			continue
+		}
+		rest = append(rest, a)
+	}
+	return rest, useJSON
+}
+
 // parseFileFlag parses args for [value] [--file path] or [--file path] [value].
 // Returns the first non-flag arg and the path from --file/-f.
 func parseFileFlag(args []string) (value, filePath string) {

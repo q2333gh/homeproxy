@@ -13,45 +13,73 @@ type singboxFeatures struct {
 	} `json:"result"`
 }
 
-func statusCommand() error {
+type statusJSON struct {
+	Service   string `json:"service"`
+	MainNode  string `json:"main_node"`
+	Routing   string `json:"routing"`
+	Version   string `json:"version,omitempty"`
+}
+
+func statusCommand(args []string) error {
 	if err := system.CheckInstalled(); err != nil {
 		return err
 	}
 
-	logInfo("HomeProxy Status")
-	fmt.Println("==================")
+	_, useJSON := parseJSONFlag(args)
 
 	running, _, _ := system.ServiceStatus()
+	mainNode, _ := system.UCIGet("homeproxy.config.main_node")
+	mainNodeLabel := ""
+	if mainNode != "" && mainNode != "nil" {
+		label, err := system.UCIGet(fmt.Sprintf("homeproxy.%s.label", mainNode))
+		if err != nil || label == "" {
+			mainNodeLabel = mainNode
+		} else {
+			mainNodeLabel = label
+		}
+	}
+	mode, _ := system.UCIGet("homeproxy.config.routing_mode")
+	version := ""
+	raw, err := system.UBUSCall(system.RPCObject, "singbox_get_features", map[string]any{})
+	if err == nil && raw != "" {
+		var f singboxFeatures
+		if jsonErr := json.Unmarshal([]byte(raw), &f); jsonErr == nil && f.Result.Version != "" {
+			version = f.Result.Version
+		}
+	}
+
+	if useJSON {
+		svc := "stopped"
+		if running {
+			svc = "running"
+		}
+		out := statusJSON{
+			Service:  svc,
+			MainNode: mainNodeLabel,
+			Routing:  mode,
+			Version:  version,
+		}
+		return writeJSON(out)
+	}
+
+	logInfo("HomeProxy Status")
+	fmt.Println("==================")
 	if running {
 		logInfo("Service: RUNNING")
 	} else {
 		logInfo("Service: NOT RUNNING")
 	}
-
-	mainNode, _ := system.UCIGet("homeproxy.config.main_node")
-	if mainNode != "" && mainNode != "nil" {
-		label, err := system.UCIGet(fmt.Sprintf("homeproxy.%s.label", mainNode))
-		if err != nil || label == "" {
-			label = mainNode
-		}
-		logInfo("Main Node: " + label)
+	if mainNodeLabel != "" {
+		logInfo("Main Node: " + mainNodeLabel)
 	} else {
 		logInfo("Main Node: Not configured")
 	}
-
-	mode, _ := system.UCIGet("homeproxy.config.routing_mode")
 	if mode != "" {
 		logInfo("Routing: " + mode)
 	}
-
-	raw, err := system.UBUSCall(system.RPCObject, "singbox_get_features", map[string]any{})
-	if err == nil && raw != "" {
-		var f singboxFeatures
-		if jsonErr := json.Unmarshal([]byte(raw), &f); jsonErr == nil && f.Result.Version != "" {
-			logInfo("Version: " + f.Result.Version)
-		}
+	if version != "" {
+		logInfo("Version: " + version)
 	}
-
 	return nil
 }
 

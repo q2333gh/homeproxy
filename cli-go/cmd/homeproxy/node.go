@@ -78,7 +78,7 @@ func nodeCommand(args []string) error {
 
 	switch action {
 	case "list":
-		return nodeList()
+		return nodeList(rest)
 	case "test":
 		return nodeTest(rest)
 	case "set-main":
@@ -98,17 +98,61 @@ func nodeCommand(args []string) error {
 	}
 }
 
-func nodeList() error {
+type nodeListJSON struct {
+	Nodes []nodeEntry `json:"nodes"`
+}
+
+type nodeEntry struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+	Type    string `json:"type"`
+	Status  string `json:"status"`
+}
+
+func nodeList(args []string) error {
 	nodes, err := getAllNodes()
 	if err != nil {
 		return err
 	}
+
+	_, useJSON := parseJSONFlag(args)
+	mainNode, _ := system.UCIGet("homeproxy.config.main_node")
+
+	if useJSON {
+		entries := make([]nodeEntry, 0, len(nodes))
+		for _, id := range nodes {
+			label, _ := system.UCIGet("homeproxy." + id + ".label")
+			if label == "" {
+				label = id
+			}
+			addr, _ := system.UCIGet("homeproxy." + id + ".address")
+			if addr == "" {
+				addr = "-"
+			}
+			port, _ := system.UCIGet("homeproxy." + id + ".port")
+			if port == "" {
+				port = "-"
+			}
+			typ, _ := system.UCIGet("homeproxy." + id + ".type")
+			status := "inactive"
+			if mainNode == id {
+				status = "active"
+			}
+			entries = append(entries, nodeEntry{
+				Name:    label,
+				Address: addr + ":" + port,
+				Type:    nodeTypeName(typ),
+				Status:  status,
+			})
+		}
+		out := nodeListJSON{Nodes: entries}
+		return writeJSON(out)
+	}
+
 	if len(nodes) == 0 {
 		logWarn("No nodes found")
 		return nil
 	}
-
-	mainNode, _ := system.UCIGet("homeproxy.config.main_node")
 
 	fmt.Printf("%-20s %-25s %-10s %s\n", "NAME", "ADDRESS", "TYPE", "STATUS")
 	fmt.Printf("%-20s %-25s %-10s %s\n", "----", "-------", "----", "------")

@@ -24,7 +24,7 @@ func routingCommand(args []string) error {
 
 	switch action {
 	case "get":
-		return routingGet()
+		return routingGet(rest)
 	case "set":
 		return routingSet(rest)
 	case "set-node":
@@ -38,10 +38,26 @@ func routingCommand(args []string) error {
 	}
 }
 
-func routingGet() error {
+type routingGetJSON struct {
+	RoutingMode string `json:"routing_mode"`
+	RoutingPort string `json:"routing_port"`
+	ProxyMode   string `json:"proxy_mode"`
+}
+
+func routingGet(args []string) error {
 	mode, _ := system.UCIGet("homeproxy.config.routing_mode")
 	port, _ := system.UCIGet("homeproxy.config.routing_port")
 	proxyMode, _ := system.UCIGet("homeproxy.config.proxy_mode")
+
+	_, useJSON := parseJSONFlag(args)
+	if useJSON {
+		out := routingGetJSON{
+			RoutingMode: mode,
+			RoutingPort: port,
+			ProxyMode:   proxyMode,
+		}
+		return writeJSON(out)
+	}
 
 	fmt.Println("Routing Mode:", mode)
 	fmt.Println("Routing Port:", port)
@@ -120,7 +136,7 @@ func routingRules() error {
 func routingStatus() error {
 	logInfo("Routing Status")
 	fmt.Println("===============")
-	routingGet()
+	routingGet(nil)
 	fmt.Println()
 	mainNode, _ := system.UCIGet("homeproxy.config.main_node")
 	udpNode, _ := system.UCIGet("homeproxy.config.main_udp_node")

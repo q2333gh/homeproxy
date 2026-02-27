@@ -1,12 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
 	"homeproxy-cli/internal/system"
 )
+
+// writeJSON encodes v as JSON to stdout (no HTML escape). For agent-friendly output.
+func writeJSON(v interface{}) error {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(v)
+}
 
 // requireRoot returns an error if the process is not running as root.
 func requireRoot() error {

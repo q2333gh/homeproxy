@@ -24,7 +24,7 @@ func subscriptionCommand(args []string) error {
 
 	switch action {
 	case "list":
-		return subscriptionList()
+		return subscriptionList(rest)
 	case "add":
 		return subscriptionAdd(rest)
 	case "remove":
@@ -42,23 +42,44 @@ func subscriptionCommand(args []string) error {
 	}
 }
 
-func subscriptionList() error {
+type subscriptionListJSON struct {
+	Subscriptions []string `json:"subscriptions"`
+	FilterKeywords []string `json:"filter_keywords,omitempty"`
+}
+
+func subscriptionList(args []string) error {
 	urls, err := system.UCIGet("homeproxy.subscription.subscription_url")
-	if err != nil || urls == "" {
+	if err != nil {
+		return err
+	}
+
+	_, useJSON := parseJSONFlag(args)
+	urlList := strings.Fields(urls)
+	filters, _ := system.UCIGet("homeproxy.subscription.filter_keywords")
+	filterList := strings.Fields(filters)
+
+	if useJSON {
+		out := subscriptionListJSON{
+			Subscriptions:  urlList,
+			FilterKeywords: filterList,
+		}
+		return writeJSON(out)
+	}
+
+	if urls == "" {
 		logWarn("No subscriptions configured")
 		return nil
 	}
 
 	logInfo("Subscriptions:")
-	for i, u := range strings.Fields(urls) {
+	for i, u := range urlList {
 		fmt.Printf("  %d. %s\n", i+1, u)
 	}
 
-	filters, _ := system.UCIGet("homeproxy.subscription.filter_keywords")
 	if filters != "" {
 		fmt.Println()
 		logInfo("Filter keywords:")
-		for i, f := range strings.Fields(filters) {
+		for i, f := range filterList {
 			fmt.Printf("  %d. %s\n", i+1, f)
 		}
 	}
@@ -150,7 +171,7 @@ func subscriptionUpdate() error {
 	logInfo("Subscriptions updated")
 	fmt.Println()
 	logInfo("Imported nodes:")
-	return nodeList()
+	return nodeList(nil)
 }
 
 func subscriptionAutoUpdate(args []string) error {
@@ -277,5 +298,5 @@ func subscriptionStatus() error {
 	fmt.Println("Filter mode:", filterMode)
 
 	fmt.Println()
-	return subscriptionList()
+	return subscriptionList(nil)
 }
