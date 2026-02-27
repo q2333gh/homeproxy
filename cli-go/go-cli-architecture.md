@@ -46,6 +46,8 @@ Go CLI **不直接**操作 sing-box 或 HomeProxy 核心，而是作为 **OpenWr
 | 组件 | 职责 |
 |------|------|
 | `cmd/homeproxy/*.go` | 命令路由、参数解析、调用 system 适配 |
+| `helpers.go` | 统一的 JSON 输出（`writeJSON`）、root 权限校验等 CLI 辅助逻辑 |
+| `args.go` | 通用参数解析（如 `--json` 等全局选项） |
 | `internal/system` | UCIGet/UCISet/UBUSCall/Service*，封装 `os/exec` |
 | `runCommand` | 执行 `uci`、`ubus`、`/etc/init.d/homeproxy` |
 
@@ -125,3 +127,4 @@ cli-go/
 - **分层**：Go CLI → OpenWrt（uci/ubus/init.d）→ HomeProxy（配置 + RPC + init 脚本）→ OS（文件、进程）
 - **控制链路**：`Go CLI → os/exec → uci | ubus | init.d → 配置/RPC/sing-box`
 - **设计原则**：薄适配层、显式 shell 调用、可 mock 测试
+- **机器友好输出**：统一的 `writeJSON` helper 负责 JSON 编码，便于脚本和 LLM 消费。

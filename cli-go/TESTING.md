@@ -8,7 +8,7 @@ All tests run with `go test` without requiring root, uci, ubus, or OpenWrt. They
 cd cli-go && go test ./...
 ```
 
-- **Unit tests**: help, status, features, resources version, acl list, generator uuid, parseFileFlag, containsString
+- **Unit tests**: help, status, features, resources version, acl list, generator uuid, parseFileFlag, containsString, JSON 输出格式 (`--json`)
 - **Contract tests**: assert the CLI invokes ubus/uci with the expected arguments per [docs/api-reference.md](../docs/api-reference.md)
 - No host state is modified (no apply, no singbox, no routing, no UCI writes)
 

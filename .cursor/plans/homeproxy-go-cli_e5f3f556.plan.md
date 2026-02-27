@@ -108,7 +108,7 @@ isProject: false
 
 #### 6. Subscription commands
 
-- Implement `subscription list/add/remove/update/auto-update/filter/status` in Go using the same UCI fields (`homeproxy.subscription.*`) as `cli/lib/subscription.sh`:
+- Implement `subscription list/add/remove/update/auto-update/filter/status` in Go using the same UCI fields (`homeproxy.subscription.`*) as `cli/lib/subscription.sh`:
   - `list`/`status`: list subscription URLs, filter keywords, auto-update flags, and related settings.
   - `add`/`remove`: manage `subscription_url` list, carefully reconstructing lists to avoid UCI quirks.
   - `update`: shell out to `/etc/homeproxy/scripts/update_subscriptions.uc` if present, then optionally reuse the Go `node list` implementation to show imported nodes.

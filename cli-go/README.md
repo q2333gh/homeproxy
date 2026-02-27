@@ -36,6 +36,20 @@ homeproxy docs --out docs/CLI_REFERENCE.md
 
 帮助与 Markdown 文档均从源码元数据生成（from-first-src），无需手写。
 
+## 机器 / LLM 友好输出
+
+部分命令支持 `--json`，方便脚本和 LLM 消费：
+
+```bash
+homeproxy status --json
+homeproxy node list --json
+homeproxy subscription list --json
+homeproxy routing get --json
+homeproxy dns get --json
+```
+
+JSON 输出写到 stdout，字段稳定且不会转义 HTML 字符，适合被 `jq`、自动化脚本或 LLM 直接解析。
+
 ## 测试
 
 ```bash
