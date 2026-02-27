@@ -5,7 +5,7 @@ Go 实现的 HomeProxy 命令行工具，无 shell 依赖。只二次封装 luci
 ## 构建
 
 ```bash
-go build -o homeproxy ./cmd/homeproxy
+go build -o bin/homeproxy ./cmd/homeproxy
 ```
 
 ## 安装
@@ -13,7 +13,7 @@ go build -o homeproxy ./cmd/homeproxy
 ```bash
 go install ./cmd/homeproxy
 # 或复制到系统路径（需 root）
-go build -o homeproxy ./cmd/homeproxy && sudo cp homeproxy /usr/bin/
+go build -o bin/homeproxy ./cmd/homeproxy && sudo cp bin/homeproxy /usr/bin/
 ```
 
 ## Bash 补全
