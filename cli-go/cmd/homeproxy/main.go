@@ -124,7 +124,6 @@ Commands:
     generator <type> [params]  Generate keys (uuid, reality-keypair, wg-keypair, vapid-keypair, ech-keypair)
 
 Options:
-    -h, --help           Show this help
-`)
+    -h, --help           Show this help`)
 }
 
