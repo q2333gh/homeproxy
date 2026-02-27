@@ -37,8 +37,8 @@ func aclList(args []string) error {
 		return fmt.Errorf("usage: homeproxy acl list <direct_list|proxy_list>")
 	}
 	typ := args[0]
-	if !containsString(aclTypes, typ) {
-		return fmt.Errorf("invalid type: %s (use: direct_list, proxy_list)", typ)
+	if err := validateOneOf(typ, aclTypes, "type"); err != nil {
+		return err
 	}
 
 	raw, err := system.UBUSCall(system.RPCObject, "acllist_read", map[string]string{"type": typ})
@@ -61,15 +61,15 @@ func aclList(args []string) error {
 }
 
 func aclWrite(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	typ, filePath := parseFileFlag(args)
 	if typ == "" {
 		return fmt.Errorf("usage: homeproxy acl write <direct_list|proxy_list> --file <path>")
 	}
-	if !containsString(aclTypes, typ) {
-		return fmt.Errorf("invalid type: %s (use: direct_list, proxy_list)", typ)
+	if err := validateOneOf(typ, aclTypes, "type"); err != nil {
+		return err
 	}
 	if filePath == "" {
 		return fmt.Errorf("usage: homeproxy acl write <type> --file <path>")

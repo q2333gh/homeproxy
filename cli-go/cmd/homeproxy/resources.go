@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"homeproxy-cli/internal/system"
@@ -36,8 +35,8 @@ func resourcesVersion(args []string) error {
 	types := resourceTypes
 	if len(args) > 0 && args[0] != "" {
 		t := args[0]
-		if !containsString(resourceTypes, t) {
-			return fmt.Errorf("invalid type: %s (use: china_ip4, china_ip6, china_list, gfw_list)", t)
+		if err := validateOneOf(t, resourceTypes, "type"); err != nil {
+			return err
 		}
 		types = []string{t}
 	}
@@ -66,15 +65,15 @@ func resourcesVersion(args []string) error {
 }
 
 func resourcesUpdate(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	if len(args) == 0 || args[0] == "" {
 		return fmt.Errorf("usage: homeproxy resources update <type> (china_ip4, china_ip6, china_list, gfw_list)")
 	}
 	typ := args[0]
-	if !containsString(resourceTypes, typ) {
-		return fmt.Errorf("invalid type: %s (use: china_ip4, china_ip6, china_list, gfw_list)", typ)
+	if err := validateOneOf(typ, resourceTypes, "type"); err != nil {
+		return err
 	}
 
 	logInfo("Updating resource: " + typ)

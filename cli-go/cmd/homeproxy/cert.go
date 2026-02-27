@@ -31,15 +31,15 @@ func certCommand(args []string) error {
 }
 
 func certWrite(args []string) error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this command requires root privileges")
+	if err := requireRoot(); err != nil {
+		return err
 	}
 	filename, filePath := parseFileFlag(args)
 	if filename == "" {
 		return fmt.Errorf("usage: homeproxy cert write <client_ca|server_publickey|server_privatekey> --file <path>")
 	}
-	if !containsString(certFilenames, filename) {
-		return fmt.Errorf("invalid filename: %s (use: client_ca, server_publickey, server_privatekey)", filename)
+	if err := validateOneOf(filename, certFilenames, "filename"); err != nil {
+		return err
 	}
 	if filePath == "" {
 		return fmt.Errorf("usage: homeproxy cert write <filename> --file <path>")
