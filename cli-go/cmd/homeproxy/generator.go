@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"homeproxy-cli/internal/system"
@@ -46,7 +47,13 @@ func generatorCommand(args []string) error {
 	if out.Error != "" {
 		return fmt.Errorf("generator failed: %s", out.Error)
 	}
-	for k, v := range out.Result {
+	keys := make([]string, 0, len(out.Result))
+	for k := range out.Result {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := out.Result[k]
 		if s, ok := v.(string); ok {
 			fmt.Printf("%s: %s\n", k, s)
 		} else {
