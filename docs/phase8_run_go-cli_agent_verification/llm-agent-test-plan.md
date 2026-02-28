@@ -42,9 +42,9 @@
 
 - **方式**：人类用自然语言与 agent 对话，agent 以向导形式一步步引导
 - **重点**：agent 能读 status / subscription list / node list 做分支；能根据输出决定「跳过 / 执行 / 询问」
-- **环境**：mock 或集成（Docker OpenWrt）
+- **环境**：use qemu to run OpenWrt x86
 
-### 4.3 Wizard 端到端（可选，需 Docker）
+### 4.3 Wizard 端到端 
 
 - **方式**：从零开始，agent 引导用户完成一条完整配置路径
 - **流程**：status → 分支（无订阅则 add；有则 update）→ node list → set-main → routing set → dns set → control start → status 确认

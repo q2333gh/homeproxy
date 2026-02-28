@@ -1,6 +1,8 @@
+p_doc/
+
 # Go CLI build output
 cli-go/bin/
 cli-go/homeproxy
 cli-go/homeproxy.exe
 
-p_doc/
+test/qemu-openwrt/os-imgs
