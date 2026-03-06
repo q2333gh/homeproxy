@@ -12,7 +12,7 @@ opkg install /tmp/luci-app-homeproxy_*.ipk
 opkg install /tmp/homeproxy-cli_*.ipk
 ```
 
-### Configure with Agent
+### Configure with Agent(such as openai codex)
 
 Use the `homeproxy` CLI to complete initial setup:
 
@@ -76,7 +76,7 @@ Runtime also requires:
 cloc . --exclude-dir=sing-box-ref,.git,.cursor,terminals --git --timeout 0 > cloc.md 2>&1 || echo 'CLOC_MISSING' >> cloc.md
 ```
 
-### Upstream TODO
+### Upstream homeproxy1 creates TODO
 
 - Subscription page slow response with a large number of nodes
 - Refactor nft rules
