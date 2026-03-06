@@ -8,7 +8,7 @@ import (
 
 func TestParseHY2ShareLink(t *testing.T) {
 	f := shareFeatures{WithQUIC: true, WithUTLS: true}
-	link := "hy2://REDACTED_PASSWORD@198.51.100.10:40020?insecure=1&sni=www.bing.com#node-a"
+	link := "hy2://testpassword@198.51.100.10:40020?insecure=1&sni=www.bing.com#node-a"
 	n := parseShareLink(link, f)
 	if n == nil {
 		t.Fatalf("expected parsed node, got nil")
@@ -19,7 +19,7 @@ func TestParseHY2ShareLink(t *testing.T) {
 	if n.Options["address"] != "198.51.100.10" || n.Options["port"] != "40020" {
 		t.Fatalf("unexpected address/port: %s:%s", n.Options["address"], n.Options["port"])
 	}
-	if n.Options["password"] != "REDACTED_PASSWORD" {
+	if n.Options["password"] != "testpassword" {
 		t.Fatalf("unexpected password: %q", n.Options["password"])
 	}
 	if n.Options["tls_sni"] != "www.bing.com" {
