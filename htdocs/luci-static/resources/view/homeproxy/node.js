@@ -2,6 +2,8 @@
  * SPDX-License-Identifier: GPL-2.0-only
  *
  * Copyright (C) 2022-2025 ImmortalWrt.org
+ *
+ * Modified by q2333gh, 2026
  */
 
 'use strict';
@@ -418,6 +420,280 @@ function appendMuxOptions(s) {
 	/* Mux config end */
 }
 
+function appendAnyTLSAndHysteriaOptions(s) {
+	let o;
+
+	/* AnyTLS config start */
+	o = s.option(form.Value, 'anytls_idle_session_check_interval', _('Idle session check interval'),
+		_('Interval checking for idle sessions, in seconds.'));
+	o.datatype = 'uinteger';
+	o.placeholder = '30';
+	o.depends('type', 'anytls');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'anytls_idle_session_timeout', _('Idle session check timeout'),
+		_('In the check, close sessions that have been idle for longer than this, in seconds.'));
+	o.datatype = 'uinteger';
+	o.placeholder = '30';
+	o.depends('type', 'anytls');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'anytls_min_idle_session', _('Minimum idle sessions'),
+		_('In the check, at least the first <code>n</code> idle sessions are kept open.'));
+	o.datatype = 'uinteger';
+	o.placeholder = '0';
+	o.depends('type', 'anytls');
+	o.modalonly = true;
+	/* AnyTLS config end */
+
+	/* Hysteria (2) config start */
+	o = s.option(form.DynamicList, 'hysteria_hopping_port', _('Hopping port'));
+	o.depends('type', 'hysteria');
+	o.depends('type', 'hysteria2');
+	o.validate = hp.validatePortRange;
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'hysteria_hop_interval', _('Hop interval'),
+		_('Port hopping interval in seconds.'));
+	o.datatype = 'uinteger';
+	o.placeholder = '30';
+	o.depends({'type': 'hysteria', 'hysteria_hopping_port': /[\s\S]/});
+	o.depends({'type': 'hysteria2', 'hysteria_hopping_port': /[\s\S]/});
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'hysteria_protocol', _('Protocol'));
+	o.value('udp');
+	o.default = 'udp';
+	o.depends('type', 'hysteria');
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'hysteria_auth_type', _('Authentication type'));
+	o.value('', _('Disable'));
+	o.value('base64', _('Base64'));
+	o.value('string', _('String'));
+	o.depends('type', 'hysteria');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'hysteria_auth_payload', _('Authentication payload'));
+	o.password = true;
+	o.depends({'type': 'hysteria', 'hysteria_auth_type': /[\s\S]/});
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'hysteria_obfs_type', _('Obfuscate type'));
+	o.value('', _('Disable'));
+	o.value('salamander', _('Salamander'));
+	o.depends('type', 'hysteria2');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'hysteria_obfs_password', _('Obfuscate password'));
+	o.password = true;
+	o.depends('type', 'hysteria');
+	o.depends({'type': 'hysteria2', 'hysteria_obfs_type': /[\s\S]/});
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'hysteria_down_mbps', _('Max download speed'),
+		_('Max download speed in Mbps.'));
+	o.datatype = 'uinteger';
+	o.depends('type', 'hysteria');
+	o.depends('type', 'hysteria2');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'hysteria_up_mbps', _('Max upload speed'),
+		_('Max upload speed in Mbps.'));
+	o.datatype = 'uinteger';
+	o.depends('type', 'hysteria');
+	o.depends('type', 'hysteria2');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'hysteria_recv_window_conn', _('QUIC stream receive window'),
+		_('The QUIC stream-level flow control window for receiving data.'));
+	o.datatype = 'uinteger';
+	o.depends('type', 'hysteria');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'hysteria_revc_window', _('QUIC connection receive window'),
+		_('The QUIC connection-level flow control window for receiving data.'));
+	o.datatype = 'uinteger';
+	o.depends('type', 'hysteria');
+	o.modalonly = true;
+
+	o = s.option(form.Flag, 'hysteria_disable_mtu_discovery', _('Disable Path MTU discovery'),
+		_('Disables Path MTU Discovery (RFC 8899). Packets will then be at most 1252 (IPv4) / 1232 (IPv6) bytes in size.'));
+	o.depends('type', 'hysteria');
+	o.modalonly = true;
+	/* Hysteria (2) config end */
+}
+
+function appendShadowsocksAndSSHOptions(s) {
+	let o;
+
+	/* Shadowsocks config start */
+	o = s.option(form.ListValue, 'shadowsocks_encrypt_method', _('Encrypt method'));
+	for (let i of hp.shadowsocks_encrypt_methods)
+		o.value(i);
+	o.value('aes-128-ctr');
+	o.value('aes-192-ctr');
+	o.value('aes-256-ctr');
+	o.value('aes-128-cfb');
+	o.value('aes-192-cfb');
+	o.value('aes-256-cfb');
+	o.value('chacha20');
+	o.value('chacha20-ietf');
+	o.value('rc4-md5');
+	o.default = 'aes-128-gcm';
+	o.depends('type', 'shadowsocks');
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'shadowsocks_plugin', _('Plugin'));
+	o.value('', _('none'));
+	o.value('obfs-local');
+	o.value('v2ray-plugin');
+	o.depends('type', 'shadowsocks');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'shadowsocks_plugin_opts', _('Plugin opts'));
+	o.depends('shadowsocks_plugin', 'obfs-local');
+	o.depends('shadowsocks_plugin', 'v2ray-plugin');
+	o.modalonly = true;
+	/* Shadowsocks config end */
+
+	/* ShadowTLS config */
+	o = s.option(form.ListValue, 'shadowtls_version', _('ShadowTLS version'));
+	o.value('1', _('v1'));
+	o.value('2', _('v2'));
+	o.value('3', _('v3'));
+	o.default = '1';
+	o.depends('type', 'shadowtls');
+	o.rmempty = false;
+	o.modalonly = true;
+
+	/* Socks config */
+	o = s.option(form.ListValue, 'socks_version', _('Socks version'));
+	o.value('4', _('Socks4'));
+	o.value('4a', _('Socks4A'));
+	o.value('5', _('Socks5'));
+	o.default = '5';
+	o.depends('type', 'socks');
+	o.rmempty = false;
+	o.modalonly = true;
+
+	/* SSH config start */
+	o = s.option(form.Value, 'ssh_client_version', _('Client version'),
+		_('Random version will be used if empty.'));
+	o.depends('type', 'ssh');
+	o.modalonly = true;
+
+	o = s.option(form.DynamicList, 'ssh_host_key', _('Host key'),
+		_('Accept any if empty.'));
+	o.depends('type', 'ssh');
+	o.modalonly = true;
+
+	o = s.option(form.DynamicList, 'ssh_host_key_algo', _('Host key algorithms'));
+	o.depends('type', 'ssh');
+	o.modalonly = true;
+
+	o = s.option(form.DynamicList, 'ssh_priv_key', _('Private key'));
+	o.password = true;
+	o.depends('type', 'ssh');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'ssh_priv_key_pp', _('Private key passphrase'));
+	o.password = true;
+	o.depends('type', 'ssh');
+	o.modalonly = true;
+	/* SSH config end */
+}
+
+function appendTuicAndV2RayOptions(s) {
+	let o;
+
+	/* TUIC config start */
+	o = s.option(form.Value, 'uuid', _('UUID'));
+	o.password = true;
+	o.depends('type', 'tuic');
+	o.depends('type', 'vless');
+	o.depends('type', 'vmess');
+	o.validate = hp.validateUUID;
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'tuic_congestion_control', _('Congestion control algorithm'),
+		_('QUIC congestion control algorithm.'));
+	o.value('cubic', _('CUBIC'));
+	o.value('new_reno', _('New Reno'));
+	o.value('bbr', _('BBR'));
+	o.default = 'cubic';
+	o.depends('type', 'tuic');
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'tuic_udp_relay_mode', _('UDP relay mode'),
+		_('UDP packet relay mode.'));
+	o.value('', _('Default'));
+	o.value('native', _('Native'));
+	o.value('quic', _('QUIC'));
+	o.depends('type', 'tuic');
+	o.modalonly = true;
+
+	o = s.option(form.Flag, 'tuic_udp_over_stream', _('UDP over stream'),
+		_('This is the TUIC port of the UDP over TCP protocol, designed to provide a QUIC stream based UDP relay mode that TUIC does not provide.'));
+	o.depends({'type': 'tuic', 'tuic_udp_relay_mode': ''});
+	o.modalonly = true;
+
+	o = s.option(form.Flag, 'tuic_enable_zero_rtt', _('Enable 0-RTT handshake'),
+		_('Enable 0-RTT QUIC connection handshake on the client side. This is not impacting much on the performance, as the protocol is fully multiplexed.<br/>' +
+			'Disabling this is highly recommended, as it is vulnerable to replay attacks.'));
+	o.depends('type', 'tuic');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'tuic_heartbeat', _('Heartbeat interval'),
+		_('Interval for sending heartbeat packets for keeping the connection alive (in seconds).'));
+	o.datatype = 'uinteger';
+	o.default = '10';
+	o.depends('type', 'tuic');
+	o.modalonly = true;
+	/* Tuic config end */
+
+	/* VMess / VLESS config start */
+	o = s.option(form.ListValue, 'vless_flow', _('Flow'));
+	o.value('', _('None'));
+	o.value('xtls-rprx-vision');
+	o.depends('type', 'vless');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'vmess_alterid', _('Alter ID'),
+		_('Legacy protocol support (VMess MD5 Authentication) is provided for compatibility purposes only, use of alterId > 1 is not recommended.'));
+	o.datatype = 'uinteger';
+	o.depends('type', 'vmess');
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'vmess_encrypt', _('Encrypt method'));
+	o.value('auto');
+	o.value('none');
+	o.value('zero');
+	o.value('aes-128-gcm');
+	o.value('chacha20-poly1305');
+	o.default = 'auto';
+	o.depends('type', 'vmess');
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.Flag, 'vmess_global_padding', _('Global padding'),
+		_('Protocol parameter. Will waste traffic randomly if enabled (enabled by default in v2ray and cannot be disabled).'));
+	o.default = o.enabled;
+	o.depends('type', 'vmess');
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.Flag, 'vmess_authenticated_length', _('Authenticated length'),
+		_('Protocol parameter. Enable length block encryption.'));
+	o.depends('type', 'vmess');
+	o.modalonly = true;
+	/* VMess config end */
+}
+
 function renderNodeSettings(section, data, features, main_node, routing_mode) {
 	let s = section, o;
 	s.rowcolors = true;
@@ -532,272 +808,9 @@ function renderNodeSettings(section, data, features, main_node, routing_mode) {
 	o.depends('type', 'direct');
 	o.modalonly = true;
 
-	/* AnyTLS config start */
-	o = s.option(form.Value, 'anytls_idle_session_check_interval', _('Idle session check interval'),
-		_('Interval checking for idle sessions, in seconds.'));
-	o.datatype = 'uinteger';
-	o.placeholder = '30';
-	o.depends('type', 'anytls');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'anytls_idle_session_timeout', _('Idle session check timeout'),
-		_('In the check, close sessions that have been idle for longer than this, in seconds.'));
-	o.datatype = 'uinteger';
-	o.placeholder = '30';
-	o.depends('type', 'anytls');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'anytls_min_idle_session', _('Minimum idle sessions'),
-		_('In the check, at least the first <code>n</code> idle sessions are kept open.'));
-	o.datatype = 'uinteger';
-	o.placeholder = '0';
-	o.depends('type', 'anytls');
-	o.modalonly = true;
-	/* AnyTLS config end */
-
-	/* Hysteria (2) config start */
-	o = s.option(form.DynamicList, 'hysteria_hopping_port', _('Hopping port'));
-	o.depends('type', 'hysteria');
-	o.depends('type', 'hysteria2');
-	o.validate = hp.validatePortRange;
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'hysteria_hop_interval', _('Hop interval'),
-		_('Port hopping interval in seconds.'));
-	o.datatype = 'uinteger';
-	o.placeholder = '30';
-	o.depends({'type': 'hysteria', 'hysteria_hopping_port': /[\s\S]/});
-	o.depends({'type': 'hysteria2', 'hysteria_hopping_port': /[\s\S]/});
-	o.modalonly = true;
-
-	o = s.option(form.ListValue, 'hysteria_protocol', _('Protocol'));
-	o.value('udp');
-	/* WeChat-Video / FakeTCP are unsupported by sing-box currently
-	 * o.value('wechat-video');
-	 * o.value('faketcp');
-	 */
-	o.default = 'udp';
-	o.depends('type', 'hysteria');
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.ListValue, 'hysteria_auth_type', _('Authentication type'));
-	o.value('', _('Disable'));
-	o.value('base64', _('Base64'));
-	o.value('string', _('String'));
-	o.depends('type', 'hysteria');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'hysteria_auth_payload', _('Authentication payload'));
-	o.password = true
-	o.depends({'type': 'hysteria', 'hysteria_auth_type': /[\s\S]/});
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.ListValue, 'hysteria_obfs_type', _('Obfuscate type'));
-	o.value('', _('Disable'));
-	o.value('salamander', _('Salamander'));
-	o.depends('type', 'hysteria2');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'hysteria_obfs_password', _('Obfuscate password'));
-	o.password = true;
-	o.depends('type', 'hysteria');
-	o.depends({'type': 'hysteria2', 'hysteria_obfs_type': /[\s\S]/});
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'hysteria_down_mbps', _('Max download speed'),
-		_('Max download speed in Mbps.'));
-	o.datatype = 'uinteger';
-	o.depends('type', 'hysteria');
-	o.depends('type', 'hysteria2');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'hysteria_up_mbps', _('Max upload speed'),
-		_('Max upload speed in Mbps.'));
-	o.datatype = 'uinteger';
-	o.depends('type', 'hysteria');
-	o.depends('type', 'hysteria2');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'hysteria_recv_window_conn', _('QUIC stream receive window'),
-		_('The QUIC stream-level flow control window for receiving data.'));
-	o.datatype = 'uinteger';
-	o.depends('type', 'hysteria');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'hysteria_revc_window', _('QUIC connection receive window'),
-		_('The QUIC connection-level flow control window for receiving data.'));
-	o.datatype = 'uinteger';
-	o.depends('type', 'hysteria');
-	o.modalonly = true;
-
-	o = s.option(form.Flag, 'hysteria_disable_mtu_discovery', _('Disable Path MTU discovery'),
-		_('Disables Path MTU Discovery (RFC 8899). Packets will then be at most 1252 (IPv4) / 1232 (IPv6) bytes in size.'));
-	o.depends('type', 'hysteria');
-	o.modalonly = true;
-	/* Hysteria (2) config end */
-
-	/* Shadowsocks config start */
-	o = s.option(form.ListValue, 'shadowsocks_encrypt_method', _('Encrypt method'));
-	for (let i of hp.shadowsocks_encrypt_methods)
-		o.value(i);
-	/* Stream ciphers */
-	o.value('aes-128-ctr');
-	o.value('aes-192-ctr');
-	o.value('aes-256-ctr');
-	o.value('aes-128-cfb');
-	o.value('aes-192-cfb');
-	o.value('aes-256-cfb');
-	o.value('chacha20');
-	o.value('chacha20-ietf');
-	o.value('rc4-md5');
-	o.default = 'aes-128-gcm';
-	o.depends('type', 'shadowsocks');
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.ListValue, 'shadowsocks_plugin', _('Plugin'));
-	o.value('', _('none'));
-	o.value('obfs-local');
-	o.value('v2ray-plugin');
-	o.depends('type', 'shadowsocks');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'shadowsocks_plugin_opts', _('Plugin opts'));
-	o.depends('shadowsocks_plugin', 'obfs-local');
-	o.depends('shadowsocks_plugin', 'v2ray-plugin');
-	o.modalonly = true;
-	/* Shadowsocks config end */
-
-	/* ShadowTLS config */
-	o = s.option(form.ListValue, 'shadowtls_version', _('ShadowTLS version'));
-	o.value('1', _('v1'));
-	o.value('2', _('v2'));
-	o.value('3', _('v3'));
-	o.default = '1';
-	o.depends('type', 'shadowtls');
-	o.rmempty = false;
-	o.modalonly = true;
-
-	/* Socks config */
-	o = s.option(form.ListValue, 'socks_version', _('Socks version'));
-	o.value('4', _('Socks4'));
-	o.value('4a', _('Socks4A'));
-	o.value('5', _('Socks5'));
-	o.default = '5';
-	o.depends('type', 'socks');
-	o.rmempty = false;
-	o.modalonly = true;
-
-	/* SSH config start */
-	o = s.option(form.Value, 'ssh_client_version', _('Client version'),
-		_('Random version will be used if empty.'));
-	o.depends('type', 'ssh');
-	o.modalonly = true;
-
-	o = s.option(form.DynamicList, 'ssh_host_key', _('Host key'),
-		_('Accept any if empty.'));
-	o.depends('type', 'ssh');
-	o.modalonly = true;
-
-	o = s.option(form.DynamicList, 'ssh_host_key_algo', _('Host key algorithms'))
-	o.depends('type', 'ssh');
-	o.modalonly = true;
-
-	o = s.option(form.DynamicList, 'ssh_priv_key', _('Private key'));
-	o.password = true;
-	o.depends('type', 'ssh');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'ssh_priv_key_pp', _('Private key passphrase'));
-	o.password = true;
-	o.depends('type', 'ssh');
-	o.modalonly = true;
-	/* SSH config end */
-
-	/* TUIC config start */
-	o = s.option(form.Value, 'uuid', _('UUID'));
-	o.password = true;
-	o.depends('type', 'tuic');
-	o.depends('type', 'vless');
-	o.depends('type', 'vmess');
-	o.validate = hp.validateUUID;
-	o.modalonly = true;
-
-	o = s.option(form.ListValue, 'tuic_congestion_control', _('Congestion control algorithm'),
-		_('QUIC congestion control algorithm.'));
-	o.value('cubic', _('CUBIC'));
-	o.value('new_reno', _('New Reno'));
-	o.value('bbr', _('BBR'));
-	o.default = 'cubic';
-	o.depends('type', 'tuic');
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.ListValue, 'tuic_udp_relay_mode', _('UDP relay mode'),
-		_('UDP packet relay mode.'));
-	o.value('', _('Default'));
-	o.value('native', _('Native'));
-	o.value('quic', _('QUIC'));
-	o.depends('type', 'tuic');
-	o.modalonly = true;
-
-	o = s.option(form.Flag, 'tuic_udp_over_stream', _('UDP over stream'),
-		_('This is the TUIC port of the UDP over TCP protocol, designed to provide a QUIC stream based UDP relay mode that TUIC does not provide.'));
-	o.depends({'type': 'tuic','tuic_udp_relay_mode': ''});
-	o.modalonly = true;
-
-	o = s.option(form.Flag, 'tuic_enable_zero_rtt', _('Enable 0-RTT handshake'),
-		_('Enable 0-RTT QUIC connection handshake on the client side. This is not impacting much on the performance, as the protocol is fully multiplexed.<br/>' +
-			'Disabling this is highly recommended, as it is vulnerable to replay attacks.'));
-	o.depends('type', 'tuic');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'tuic_heartbeat', _('Heartbeat interval'),
-		_('Interval for sending heartbeat packets for keeping the connection alive (in seconds).'));
-	o.datatype = 'uinteger';
-	o.default = '10';
-	o.depends('type', 'tuic');
-	o.modalonly = true;
-	/* Tuic config end */
-
-	/* VMess / VLESS config start */
-	o = s.option(form.ListValue, 'vless_flow', _('Flow'));
-	o.value('', _('None'));
-	o.value('xtls-rprx-vision');
-	o.depends('type', 'vless');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'vmess_alterid', _('Alter ID'),
-		_('Legacy protocol support (VMess MD5 Authentication) is provided for compatibility purposes only, use of alterId > 1 is not recommended.'));
-	o.datatype = 'uinteger';
-	o.depends('type', 'vmess');
-	o.modalonly = true;
-
-	o = s.option(form.ListValue, 'vmess_encrypt', _('Encrypt method'));
-	o.value('auto');
-	o.value('none');
-	o.value('zero');
-	o.value('aes-128-gcm');
-	o.value('chacha20-poly1305');
-	o.default = 'auto';
-	o.depends('type', 'vmess');
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.Flag, 'vmess_global_padding', _('Global padding'),
-		_('Protocol parameter. Will waste traffic randomly if enabled (enabled by default in v2ray and cannot be disabled).'));
-	o.default = o.enabled;
-	o.depends('type', 'vmess');
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.Flag, 'vmess_authenticated_length', _('Authenticated length'),
-		_('Protocol parameter. Enable length block encryption.'));
-	o.depends('type', 'vmess');
-	o.modalonly = true;
-	/* VMess config end */
+	appendAnyTLSAndHysteriaOptions(s);
+	appendShadowsocksAndSSHOptions(s);
+	appendTuicAndV2RayOptions(s);
 
 	appendTransportOptions(s, features);
 
