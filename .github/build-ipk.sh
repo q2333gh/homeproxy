@@ -97,7 +97,7 @@ default_prerm' > "$TEMP_DIR/pre-deinstall"
 	apk mkpkg \
 		--info "name:$PKG_NAME" \
 		--info "version:$PKG_VERSION" \
-		--info "description:The modern ImmortalWrt proxy platform for ARM64/AMD64" \
+		--info "description:The modern openwrt proxy platform for ARM64/AMD64" \
 		--info "arch:all" \
 		--info "origin:https://github.com/immortalwrt/homeproxy" \
 		--info "url:" \
@@ -125,7 +125,7 @@ else
 		Maintainer: Tianling Shen <cnsztl@immortalwrt.org>
 		Architecture: all
 		Installed-Size: TO-BE-FILLED-BY-IPKG-BUILD
-		Description:  The modern ImmortalWrt proxy platform for ARM64/AMD64
+		Description:  The modern openwrt proxy platform for ARM64/AMD64
 	EOF
 	chmod 0644 "$TEMP_PKG_DIR/CONTROL/control"
 
