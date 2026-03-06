@@ -303,6 +303,121 @@ function appendTransportOptions(s, features) {
 	/* Transport config end */
 }
 
+function appendWireGuardOptions(s) {
+	let o;
+
+	/* Wireguard config start */
+	o = s.option(form.DynamicList, 'wireguard_local_address', _('Local address'),
+		_('List of IP (v4 or v6) addresses prefixes to be assigned to the interface.'));
+	o.datatype = 'cidr';
+	o.depends('type', 'wireguard');
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'wireguard_private_key', _('Private key'),
+		_('WireGuard requires base64-encoded private keys.'));
+	o.password = true;
+	o.depends('type', 'wireguard');
+	o.validate = L.bind(hp.validateBase64Key, null, 44);
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'wireguard_peer_public_key', _('Peer pubkic key'),
+		_('WireGuard peer public key.'));
+	o.depends('type', 'wireguard');
+	o.validate = L.bind(hp.validateBase64Key, null, 44);
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'wireguard_pre_shared_key', _('Pre-shared key'),
+		_('WireGuard pre-shared key.'));
+	o.password = true;
+	o.depends('type', 'wireguard');
+	o.validate = L.bind(hp.validateBase64Key, null, 44);
+	o.modalonly = true;
+
+	o = s.option(form.DynamicList, 'wireguard_reserved', _('Reserved field bytes'));
+	o.datatype = 'integer';
+	o.depends('type', 'wireguard');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'wireguard_mtu', _('MTU'));
+	o.datatype = 'range(0,9000)';
+	o.placeholder = '1408';
+	o.depends('type', 'wireguard');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'wireguard_persistent_keepalive_interval', _('Persistent keepalive interval'),
+		_('In seconds. Disabled by default.'));
+	o.datatype = 'uinteger';
+	o.depends('type', 'wireguard');
+	o.modalonly = true;
+	/* Wireguard config end */
+}
+
+function appendMuxOptions(s) {
+	let o;
+
+	/* Mux config start */
+	o = s.option(form.Flag, 'multiplex', _('Multiplex'));
+	o.depends('type', 'shadowsocks');
+	o.depends('type', 'trojan');
+	o.depends('type', 'vless');
+	o.depends('type', 'vmess');
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'multiplex_protocol', _('Protocol'),
+		_('Multiplex protocol.'));
+	o.value('h2mux');
+	o.value('smux');
+	o.value('yamux');
+	o.default = 'h2mux';
+	o.depends('multiplex', '1');
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'multiplex_max_connections', _('Maximum connections'));
+	o.datatype = 'uinteger';
+	o.depends('multiplex', '1');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'multiplex_min_streams', _('Minimum streams'),
+		_('Minimum multiplexed streams in a connection before opening a new connection.'));
+	o.datatype = 'uinteger';
+	o.depends('multiplex', '1');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'multiplex_max_streams', _('Maximum streams'),
+		_('Maximum multiplexed streams in a connection before opening a new connection.<br/>' +
+			'Conflict with <code>%s</code> and <code>%s</code>.').format(
+				_('Maximum connections'), _('Minimum streams')));
+	o.datatype = 'uinteger';
+	o.depends({'multiplex': '1', 'multiplex_max_connections': '', 'multiplex_min_streams': ''});
+	o.modalonly = true;
+
+	o = s.option(form.Flag, 'multiplex_padding', _('Enable padding'));
+	o.depends('multiplex', '1');
+	o.modalonly = true;
+
+	o = s.option(form.Flag, 'multiplex_brutal', _('Enable TCP Brutal'),
+		_('Enable TCP Brutal congestion control algorithm'));
+	o.depends('multiplex', '1');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'multiplex_brutal_down', _('Download bandwidth'),
+		_('Download bandwidth in Mbps.'));
+	o.datatype = 'uinteger';
+	o.depends('multiplex_brutal', '1');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'multiplex_brutal_up', _('Upload bandwidth'),
+		_('Upload bandwidth in Mbps.'));
+	o.datatype = 'uinteger';
+	o.depends('multiplex_brutal', '1');
+	o.modalonly = true;
+	/* Mux config end */
+}
+
 function renderNodeSettings(section, data, features, main_node, routing_mode) {
 	let s = section, o;
 	s.rowcolors = true;
@@ -686,112 +801,8 @@ function renderNodeSettings(section, data, features, main_node, routing_mode) {
 
 	appendTransportOptions(s, features);
 
-	/* Wireguard config start */
-	o = s.option(form.DynamicList, 'wireguard_local_address', _('Local address'),
-		_('List of IP (v4 or v6) addresses prefixes to be assigned to the interface.'));
-	o.datatype = 'cidr';
-	o.depends('type', 'wireguard');
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'wireguard_private_key', _('Private key'),
-		_('WireGuard requires base64-encoded private keys.'));
-	o.password = true;
-	o.depends('type', 'wireguard');
-	o.validate = L.bind(hp.validateBase64Key, this, 44);
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'wireguard_peer_public_key', _('Peer pubkic key'),
-		_('WireGuard peer public key.'));
-	o.depends('type', 'wireguard');
-	o.validate = L.bind(hp.validateBase64Key, this, 44);
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'wireguard_pre_shared_key', _('Pre-shared key'),
-		_('WireGuard pre-shared key.'));
-	o.password = true;
-	o.depends('type', 'wireguard');
-	o.validate = L.bind(hp.validateBase64Key, this, 44);
-	o.modalonly = true;
-
-	o = s.option(form.DynamicList, 'wireguard_reserved', _('Reserved field bytes'));
-	o.datatype = 'integer';
-	o.depends('type', 'wireguard');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'wireguard_mtu', _('MTU'));
-	o.datatype = 'range(0,9000)';
-	o.placeholder = '1408';
-	o.depends('type', 'wireguard');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'wireguard_persistent_keepalive_interval', _('Persistent keepalive interval'),
-		_('In seconds. Disabled by default.'));
-	o.datatype = 'uinteger';
-	o.depends('type', 'wireguard');
-	o.modalonly = true;
-	/* Wireguard config end */
-
-	/* Mux config start */
-	o = s.option(form.Flag, 'multiplex', _('Multiplex'));
-	o.depends('type', 'shadowsocks');
-	o.depends('type', 'trojan');
-	o.depends('type', 'vless');
-	o.depends('type', 'vmess');
-	o.modalonly = true;
-
-	o = s.option(form.ListValue, 'multiplex_protocol', _('Protocol'),
-		_('Multiplex protocol.'));
-	o.value('h2mux');
-	o.value('smux');
-	o.value('yamux');
-	o.default = 'h2mux';
-	o.depends('multiplex', '1');
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'multiplex_max_connections', _('Maximum connections'));
-	o.datatype = 'uinteger';
-	o.depends('multiplex', '1');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'multiplex_min_streams', _('Minimum streams'),
-		_('Minimum multiplexed streams in a connection before opening a new connection.'));
-	o.datatype = 'uinteger';
-	o.depends('multiplex', '1');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'multiplex_max_streams', _('Maximum streams'),
-		_('Maximum multiplexed streams in a connection before opening a new connection.<br/>' +
-			'Conflict with <code>%s</code> and <code>%s</code>.').format(
-				_('Maximum connections'), _('Minimum streams')));
-	o.datatype = 'uinteger';
-	o.depends({'multiplex': '1', 'multiplex_max_connections': '', 'multiplex_min_streams': ''});
-	o.modalonly = true;
-
-	o = s.option(form.Flag, 'multiplex_padding', _('Enable padding'));
-	o.depends('multiplex', '1');
-	o.modalonly = true;
-
-	o = s.option(form.Flag, 'multiplex_brutal', _('Enable TCP Brutal'),
-		_('Enable TCP Brutal congestion control algorithm'));
-	o.depends('multiplex', '1');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'multiplex_brutal_down', _('Download bandwidth'),
-		_('Download bandwidth in Mbps.'));
-	o.datatype = 'uinteger';
-	o.depends('multiplex_brutal', '1');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'multiplex_brutal_up', _('Upload bandwidth'),
-		_('Upload bandwidth in Mbps.'));
-	o.datatype = 'uinteger';
-	o.depends('multiplex_brutal', '1');
-	o.modalonly = true;
-	/* Mux config end */
+	appendWireGuardOptions(s);
+	appendMuxOptions(s);
 
 	appendTLSOptions(s, features);
 
