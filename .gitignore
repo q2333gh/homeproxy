@@ -6,3 +6,5 @@ cli-go/homeproxy
 cli-go/homeproxy.exe
 
 test/qemu-openwrt/os-imgs
+
+dist/

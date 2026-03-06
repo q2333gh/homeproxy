@@ -3,7 +3,7 @@
 ## 一、为什么 Go CLI 能控制 HomeProxy？
 
 Go CLI **不直接**操作 sing-box 或 HomeProxy 核心，而是作为 **OpenWrt 系统接口的客户端** 间接控制。
-与 LuCI Web 共用同一套底层通道（UCI、ubus、init.d , 且未修改原homeproxy,只是进行了go-cli封装）。
+与 LuCI Web 共用同一套底层通道（`uci`、`ubus`、`/etc/init.d/homeproxy`），未改动 HomeProxy 底层实现，只做了 Go 封装。
 
 ---
 
@@ -48,6 +48,7 @@ Go CLI **不直接**操作 sing-box 或 HomeProxy 核心，而是作为 **OpenWr
 | `cmd/homeproxy/*.go` | 命令路由、参数解析、调用 system 适配 |
 | `helpers.go` | 统一的 JSON 输出（`writeJSON`）、root 权限校验等 CLI 辅助逻辑 |
 | `args.go` | 通用参数解析（如 `--json` 等全局选项） |
+| `sharelink.go` | 分享链接解析（`hy2/ss/trojan/vmess/vless/...`）与导入写入逻辑 |
 | `internal/system` | UCIGet/UCISet/UBUSCall/Service*，封装 `os/exec` |
 | `runCommand` | 执行 `uci`、`ubus`、`/etc/init.d/homeproxy` |
 
@@ -86,6 +87,7 @@ Go CLI **不直接**操作 sing-box 或 HomeProxy 核心，而是作为 **OpenWr
 | `homeproxy status` | Go CLI → `uci get` + `init.d status` + `ubus singbox_get_features` → 配置/状态/RPC → 文件/进程 |
 | `homeproxy control start` | Go CLI → `/etc/init.d/homeproxy start` → init.d → 启动 sing-box |
 | `homeproxy node set-main X` | Go CLI → `uci set` + `uci commit` + `init.d reload` → UCI → 写配置并重载 sing-box |
+| `homeproxy node import <share-link|url>` | Go CLI 先在 L1 解析分享链接；有效节点走 `uci add/set/add_list`；订阅 URL 走 `uci add_list subscription_url`；最后 `uci commit` + `init.d reload` |
 | `homeproxy log [type]` | Go CLI → `os.ReadFile` → 直接读 `/var/run/homeproxy/<type>.log`（跳过 L2/L3） |
 | `homeproxy features` | Go CLI → `ubus call luci.homeproxy singbox_get_features` → rpcd → ucode 后端 |
 
@@ -115,10 +117,11 @@ cli-go/
 | acl | ubus acllist_read / acllist_write |
 | cert | 文件 + ubus certificate_write |
 | generator | ubus singbox_generator |
-| node | uci + ubus connection_check |
+| node | `uci`（节点增删改查、share-link 导入）+ `ubus connection_check`（test） |
 | routing | uci |
 | dns | uci |
 | subscription | uci (+ 更新脚本) |
+| completion / docs | 纯 L1，本地输出，不调用 L2 |
 
 ---
 
