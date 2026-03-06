@@ -370,57 +370,67 @@ function generate_outbound(node) {
 	return outbound;
 }
 
-function get_outbound(cfg) {
-	if (isEmpty(cfg))
-		return null;
+function build_resolver_layer() {
+	function resolve_outbound(cfg) {
+		if (isEmpty(cfg))
+			return null;
 
-	if (type(cfg) === 'array') {
-		if ('any-out' in cfg)
-			return 'any';
+		if (type(cfg) === 'array') {
+			if ('any-out' in cfg)
+				return 'any';
 
-		let outbounds = [];
-		for (let i in cfg)
-			push(outbounds, get_outbound(i));
-		return outbounds;
-	} else {
-		switch (cfg) {
-		case 'block-out':
-		case 'direct-out':
-			return cfg;
-		default:
-			const node = uci.get(uciconfig, cfg, 'node');
-			if (isEmpty(node))
-				die(sprintf("%s's node is missing, please check your configuration.", cfg));
-			else if (node === 'urltest')
-				return 'cfg-' + cfg + '-out';
-			else
-				return 'cfg-' + node + '-out';
+			let outbounds = [];
+			for (let i in cfg)
+				push(outbounds, resolve_outbound(i));
+			return outbounds;
+		} else {
+			switch (cfg) {
+			case 'block-out':
+			case 'direct-out':
+				return cfg;
+			default:
+				const node = uci.get(uciconfig, cfg, 'node');
+				if (isEmpty(node))
+					die(sprintf("%s's node is missing, please check your configuration.", cfg));
+				else if (node === 'urltest')
+					return 'cfg-' + cfg + '-out';
+				else
+					return 'cfg-' + node + '-out';
+			}
 		}
 	}
-}
 
-function get_resolver(cfg) {
-	if (isEmpty(cfg))
-		return null;
+	function resolve_dns_server(cfg) {
+		if (isEmpty(cfg))
+			return null;
 
-	switch (cfg) {
-	case 'default-dns':
-	case 'system-dns':
-		return cfg;
-	default:
-		return 'cfg-' + cfg + '-dns';
+		switch (cfg) {
+		case 'default-dns':
+		case 'system-dns':
+			return cfg;
+		default:
+			return 'cfg-' + cfg + '-dns';
+		}
 	}
+
+	function resolve_ruleset(cfg) {
+		if (isEmpty(cfg))
+			return null;
+
+		let rules = [];
+		for (let i in cfg)
+			push(rules, isEmpty(i) ? null : 'cfg-' + i + '-rule');
+		return rules;
+	}
+
+	return {
+		outbound: resolve_outbound,
+		resolver: resolve_dns_server,
+		ruleset: resolve_ruleset
+	};
 }
 
-function get_ruleset(cfg) {
-	if (isEmpty(cfg))
-		return null;
-
-	let rules = [];
-	for (let i in cfg)
-		push(rules, isEmpty(i) ? null : 'cfg-' + i + '-rule');
-	return rules;
-}
+const resolve = build_resolver_layer();
 /* Config helper end */
 
 const config = {};
@@ -541,7 +551,7 @@ if (!isEmpty(main_node)) {
 		if (cfg.enabled !== '1')
 			return;
 
-		let outbound = get_outbound(cfg.outbound);
+		let outbound = resolve.outbound(cfg.outbound);
 		if (outbound === 'direct-out' && isEmpty(self_mark))
 			outbound = null;
 
@@ -557,7 +567,7 @@ if (!isEmpty(main_node)) {
 				server_name: cfg.tls_sni
 			} : null,
 			domain_resolver: (cfg.address_resolver || cfg.address_strategy) ? {
-				server: get_resolver(cfg.address_resolver || dns_default_server),
+				server: resolve.resolver(cfg.address_resolver || dns_default_server),
 				strategy: cfg.address_strategy
 			} : null,
 			detour: outbound
@@ -590,12 +600,12 @@ if (!isEmpty(main_node)) {
 			process_path: cfg.process_path,
 			process_path_regex: cfg.process_path_regex,
 			user: cfg.user,
-			rule_set: get_ruleset(cfg.rule_set),
+			rule_set: resolve.ruleset(cfg.rule_set),
 			rule_set_ip_cidr_match_source: strToBool(cfg.rule_set_ip_cidr_match_source),
 			invert: strToBool(cfg.invert),
-			outbound: get_outbound(cfg.outbound),
+			outbound: resolve.outbound(cfg.outbound),
 			action: cfg.action,
-			server: get_resolver(cfg.server),
+			server: resolve.resolver(cfg.server),
 			strategy: cfg.domain_strategy,
 			disable_cache: strToBool(cfg.dns_disable_cache),
 			rewrite_ttl: strToInt(cfg.rewrite_ttl),
@@ -612,7 +622,7 @@ if (!isEmpty(main_node)) {
 	if (isEmpty(config.dns.rules))
 		config.dns.rules = null;
 
-	config.dns.final = get_resolver(dns_default_server);
+	config.dns.final = resolve.resolver(dns_default_server);
 }
 /* DNS end */
 
@@ -781,19 +791,19 @@ if (!isEmpty(main_node)) {
 			if (outbound.type === 'wireguard') {
 				push(config.endpoints, generate_endpoint(outbound));
 				config.endpoints[length(config.endpoints)-1].bind_interface = cfg.bind_interface;
-				config.endpoints[length(config.endpoints)-1].detour = get_outbound(cfg.outbound);
+				config.endpoints[length(config.endpoints)-1].detour = resolve.outbound(cfg.outbound);
 				if (cfg.domain_resolver)
 					config.endpoints[length(config.endpoints)-1].domain_resolver = {
-						server: get_resolver(cfg.domain_resolver),
+						server: resolve.resolver(cfg.domain_resolver),
 						strategy: cfg.domain_strategy
 					};
 			} else {
 				push(config.outbounds, generate_outbound(outbound));
 				config.outbounds[length(config.outbounds)-1].bind_interface = cfg.bind_interface;
-				config.outbounds[length(config.outbounds)-1].detour = get_outbound(cfg.outbound);
+				config.outbounds[length(config.outbounds)-1].detour = resolve.outbound(cfg.outbound);
 				if (cfg.domain_resolver)
 					config.outbounds[length(config.outbounds)-1].domain_resolver = {
-						server: get_resolver(cfg.domain_resolver),
+						server: resolve.resolver(cfg.domain_resolver),
 						strategy: cfg.domain_strategy
 					};
 			}
@@ -915,7 +925,7 @@ if (!isEmpty(main_node)) {
 } else if (!isEmpty(default_outbound)) {
 	config.route.default_domain_resolver = {
 		action: 'resolve',
-		server: get_resolver(default_outbound_dns)
+		server: resolve.resolver(default_outbound_dns)
 	};
 
 	if (domain_strategy)
@@ -948,12 +958,12 @@ if (!isEmpty(main_node)) {
 			process_path: cfg.process_path,
 			process_path_regex: cfg.process_path_regex,
 			user: cfg.user,
-			rule_set: get_ruleset(cfg.rule_set),
+			rule_set: resolve.ruleset(cfg.rule_set),
 			rule_set_ip_cidr_match_source: strToBool(cfg.rule_set_ip_cidr_match_source),
 			rule_set_ip_cidr_accept_empty: strToBool(cfg.rule_set_ip_cidr_accept_empty),
 			invert: strToBool(cfg.invert),
 			action: cfg.action,
-			outbound: get_outbound(cfg.outbound),
+			outbound: resolve.outbound(cfg.outbound),
 			override_address: cfg.override_address,
 			override_port: strToInt(cfg.override_port),
 			udp_disable_domain_unmapping: strToBool(cfg.udp_disable_domain_unmapping),
@@ -965,7 +975,7 @@ if (!isEmpty(main_node)) {
 		});
 	});
 
-	config.route.final = get_outbound(default_outbound);
+	config.route.final = resolve.outbound(default_outbound);
 
 	/* Rule set */
 	uci.foreach(uciconfig, uciruleset, (cfg) => {
@@ -978,7 +988,7 @@ if (!isEmpty(main_node)) {
 			format: cfg.format,
 			path: cfg.path,
 			url: cfg.url,
-			download_detour: get_outbound(cfg.outbound),
+			download_detour: resolve.outbound(cfg.outbound),
 			update_interval: cfg.update_interval
 		});
 	});

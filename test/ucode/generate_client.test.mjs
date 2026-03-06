@@ -27,3 +27,11 @@ test('generate_client builds explicit context before assembling config', () => {
   assert.match(source, /const ctx = build_context\(\);/);
   assert.match(source, /const routing_mode = ctx\.routing_mode,/);
 });
+
+test('generate_client centralizes outbound and resolver name resolution', () => {
+  assert.match(source, /function build_resolver_layer\(\)/);
+  assert.match(source, /const resolve = build_resolver_layer\(\);/);
+  assert.match(source, /resolve\.outbound\(/);
+  assert.match(source, /resolve\.resolver\(/);
+  assert.match(source, /resolve\.ruleset\(/);
+});
