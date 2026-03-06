@@ -358,22 +358,72 @@ func nodeImport(args []string) error {
 	if err := requireRoot(); err != nil {
 		return err
 	}
-	if len(args) == 0 || args[0] == "" {
-		return fmt.Errorf("subscription URL required")
-	}
-	url := args[0]
-	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		return fmt.Errorf("invalid URL: %s", url)
+	if len(args) == 0 {
+		return fmt.Errorf("usage: homeproxy node import <share-link|url> [more links...]")
 	}
 
-	logInfo("Importing nodes from: " + url)
-	if err := system.UCIAddList("homeproxy.subscription.subscription_url", url); err != nil {
-		return err
+	lines := parseImportLines(args)
+	if len(lines) == 0 {
+		return fmt.Errorf("no valid input links")
 	}
+
+	allowInsecure, _ := system.UCIGet("homeproxy.subscription.allow_insecure")
+	packetEncoding, _ := system.UCIGet("homeproxy.subscription.packet_encoding")
+	features := loadShareFeatures()
+
+	importedNodes := 0
+	addedSubscriptions := 0
+	invalidLinks := 0
+
+	for _, line := range lines {
+		if looksLikeSubscriptionURL(line) {
+			if err := system.UCIAddList("homeproxy.subscription.subscription_url", line); err != nil {
+				return err
+			}
+			addedSubscriptions++
+			continue
+		}
+
+		node := parseShareLink(line, features)
+		if node == nil {
+			invalidLinks++
+			continue
+		}
+
+		if node.Options["tls"] == "1" && allowInsecure == "1" {
+			node.Options["tls_insecure"] = "1"
+		}
+		switch node.Options["type"] {
+		case "vless", "vmess":
+			if packetEncoding != "" {
+				node.Options["packet_encoding"] = packetEncoding
+			}
+		}
+
+		if err := applyParsedNodeToUCI(node); err != nil {
+			return err
+		}
+		importedNodes++
+	}
+
+	if importedNodes == 0 && addedSubscriptions == 0 {
+		return fmt.Errorf("no valid share link or subscription URL found")
+	}
+
 	if err := uciCommitAndReload(); err != nil {
 		return err
 	}
-	logInfo("Subscription added. Run 'homeproxy subscription update' to import nodes.")
+
+	total := len(lines)
+	if importedNodes > 0 {
+		logInfo(fmt.Sprintf("Successfully imported %d nodes of total %d.", importedNodes, total))
+	}
+	if addedSubscriptions > 0 {
+		logInfo(fmt.Sprintf("Added %d subscription URL(s). Run 'homeproxy subscription update' to import nodes.", addedSubscriptions))
+	}
+	if invalidLinks > 0 {
+		logWarn(fmt.Sprintf("Skipped %d invalid link(s).", invalidLinks))
+	}
 	return nil
 }
 

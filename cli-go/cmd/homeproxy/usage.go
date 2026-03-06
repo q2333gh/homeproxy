@@ -25,7 +25,7 @@ var allCommands = []CmdSpec{
 			{"add <type> <addr> <port> [label]", "Add new node"},
 			{"remove <name>", "Remove node"},
 			{"edit <name> <key> <value>", "Edit node"},
-			{"import <url>", "Import from URL"},
+			{"import <share-link|url> [more links...]", "Import share links or subscription URLs"},
 			{"export [name]", "Export nodes"},
 		},
 	},
