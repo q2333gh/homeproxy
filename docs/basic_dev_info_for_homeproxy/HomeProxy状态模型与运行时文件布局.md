@@ -1,6 +1,8 @@
 
 ##   重要运行时状态 & 存储位置（唯一事实来源：源码）
 
+uci配置默认值的代码库中位置: root/etc/config/homeproxy
+
 > 本小节只根据本仓库源码与脚本整理 homeproxy 的内部运行时状态，不依赖外部文档。
 
 - **UCI 持久配置（`/etc/config/homeproxy`）**

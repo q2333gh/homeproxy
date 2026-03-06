@@ -16,6 +16,14 @@ go install ./cmd/homeproxy
 go build -o bin/homeproxy ./cmd/homeproxy && sudo cp bin/homeproxy /usr/bin/
 ```
 
+## OpenWrt 独立包分发
+
+CI 会单独产出 `homeproxy-cli` 包（与 `luci-app-homeproxy` 分离），用于直接在 OpenWrt 安装：
+
+```bash
+opkg install /tmp/homeproxy-cli_*.ipk
+```
+
 ## Bash 补全
 
 ```bash
