@@ -8,69 +8,13 @@
 'require form';
 'require network';
 'require poll';
-'require rpc';
 'require uci';
-'require validation';
 'require view';
 
 'require homeproxy as hp';
+'require homeproxy.client as hpclient';
 'require tools.firewall as fwtool';
 'require tools.widgets as widgets';
-
-const callServiceList = rpc.declare({
-  object: 'service',
-  method: 'list',
-  params: ['name'],
-  expect: { '': {} }
-});
-
-const callReadDomainList = rpc.declare({
-  object: 'luci.homeproxy',
-  method: 'acllist_read',
-  params: ['type'],
-  expect: { '': {} }
-});
-
-const callWriteDomainList = rpc.declare({
-  object: 'luci.homeproxy',
-  method: 'acllist_write',
-  params: ['type', 'content'],
-  expect: { '': {} }
-});
-
-function getServiceStatus() {
-  return L.resolveDefault(callServiceList('homeproxy'), {}).then((res) => {
-    let isRunning = false;
-    try {
-      isRunning = res['homeproxy']['instances']['sing-box-c']['running'];
-    } catch (e) { }
-    return isRunning;
-  });
-}
-
-function renderStatus(isRunning, version) {
-  let spanTemp = '<em><span style="color:%s"><strong>%s (sing-box v%s) %s</strong></span></em>';
-  let renderHTML;
-  if (isRunning)
-    renderHTML = spanTemp.format('green', _('HomeProxy'), version, _('RUNNING'));
-  else
-    renderHTML = spanTemp.format('red', _('HomeProxy'), version, _('NOT RUNNING'));
-
-  return renderHTML;
-}
-
-let stubValidator = {
-  factory: validation,
-  apply(type, value, args) {
-    if (value != null)
-      this.value = value;
-
-    return validation.types[type].apply(this, args);
-  },
-  assert(condition) {
-    return !!condition;
-  }
-};
 
 return view.extend({
   load() {
@@ -94,7 +38,7 @@ return view.extend({
         nodeport = ((res.type === 'direct') ? res.override_port : res.port) || '';
 
       proxy_nodes[res['.name']] =
-        String.format('[%s] %s', res.type, res.label || ((stubValidator.apply('ip6addr', nodeaddr) ?
+        String.format('[%s] %s', res.type, res.label || ((hpclient.stubValidator.apply('ip6addr', nodeaddr) ?
           String.format('[%s]', nodeaddr) : nodeaddr) + ':' + nodeport));
     });
 
@@ -104,9 +48,9 @@ return view.extend({
     s = m.section(form.TypedSection);
     s.render = function () {
       poll.add(function () {
-        return L.resolveDefault(getServiceStatus()).then((res) => {
+        return L.resolveDefault(hpclient.getServiceStatus()).then((res) => {
           let view = document.getElementById('service_status');
-          view.innerHTML = renderStatus(res, features.version);
+          view.innerHTML = hpclient.renderStatus(res, features.version);
         });
       });
 
@@ -190,28 +134,7 @@ return view.extend({
     o.rmempty = false;
     o.depends({ 'routing_mode': 'custom', '!reverse': true });
     o.validate = function (section_id, value) {
-      if (section_id && !['wan'].includes(value)) {
-        if (!value)
-          return _('Expecting: %s').format(_('non-empty value'));
-
-        let ipv6_support = this.section.formvalue(section_id, 'ipv6_support');
-        try {
-          let url = new URL(value.replace(/^.*:\/\//, 'http://'));
-          if (stubValidator.apply('hostname', url.hostname))
-            return true;
-          else if (stubValidator.apply('ip4addr', url.hostname))
-            return true;
-          else if ((ipv6_support === '1') && stubValidator.apply('ip6addr', url.hostname.match(/^\[(.+)\]$/)?.[1]))
-            return true;
-          else
-            return _('Expecting: %s').format(_('valid DNS server address'));
-        } catch (e) { }
-
-        if (!stubValidator.apply((ipv6_support === '1') ? 'ipaddr' : 'ip4addr', value))
-          return _('Expecting: %s').format(_('valid DNS server address'));
-      }
-
-      return true;
+      return hpclient.validateDnsServer(this, section_id, value, true);
     }
 
     o = s.taboption('routing', form.Value, 'china_dns_server', _('China DNS server'),
@@ -225,27 +148,7 @@ return view.extend({
     o.default = '223.5.5.5';
     o.rmempty = false;
     o.validate = function (section_id, value) {
-      if (section_id && !['wan'].includes(value)) {
-        if (!value)
-          return _('Expecting: %s').format(_('non-empty value'));
-
-        try {
-          let url = new URL(value.replace(/^.*:\/\//, 'http://'));
-          if (stubValidator.apply('hostname', url.hostname))
-            return true;
-          else if (stubValidator.apply('ip4addr', url.hostname))
-            return true;
-          else if (stubValidator.apply('ip6addr', url.hostname.match(/^\[(.+)\]$/)?.[1]))
-            return true;
-          else
-            return _('Expecting: %s').format(_('valid DNS server address'));
-        } catch (e) { }
-
-        if (!stubValidator.apply('ipaddr', value))
-          return _('Expecting: %s').format(_('valid DNS server address'));
-      }
-
-      return true;
+      return hpclient.validateDnsServer(this, section_id, value, false);
     }
 
     o = s.taboption('routing', form.ListValue, 'routing_mode', _('Routing mode'));
@@ -270,7 +173,7 @@ return view.extend({
 
         let ports = [];
         for (let i of value.split(',')) {
-          if (!stubValidator.apply('port', i) && !stubValidator.apply('portrange', i))
+          if (!hpclient.stubValidator.apply('port', i) && !hpclient.stubValidator.apply('portrange', i))
             return _('Expecting: %s').format(_('valid port value'));
           if (ports.includes(i))
             return _('Port %s alrealy exists!').format(i);
@@ -1486,28 +1389,7 @@ return view.extend({
     so.monospace = true;
     so.datatype = 'hostname';
     so.depends({ 'homeproxy.config.routing_mode': 'custom', '!reverse': true });
-    so.load = function (/* ... */) {
-      return L.resolveDefault(callReadDomainList('proxy_list')).then((res) => {
-        return res.content;
-      }, {});
-    }
-    so.write = function (_section_id, value) {
-      return callWriteDomainList('proxy_list', value);
-    }
-    so.remove = function (/* ... */) {
-      let routing_mode = this.section.formvalue('config', 'routing_mode');
-      if (routing_mode !== 'custom')
-        return callWriteDomainList('proxy_list', '');
-      return true;
-    }
-    so.validate = function (section_id, value) {
-      if (section_id && value)
-        for (let i of value.split('\n'))
-          if (i && !stubValidator.apply('hostname', i))
-            return _('Expecting: %s').format(_('valid hostname'));
-
-      return true;
-    }
+    hpclient.bindDomainListOption(so, 'proxy_list');
     /* Proxy domain list end */
 
     /* Direct domain list start */
@@ -1518,28 +1400,7 @@ return view.extend({
     so.monospace = true;
     so.datatype = 'hostname';
     so.depends({ 'homeproxy.config.routing_mode': 'custom', '!reverse': true });
-    so.load = function (/* ... */) {
-      return L.resolveDefault(callReadDomainList('direct_list')).then((res) => {
-        return res.content;
-      }, {});
-    }
-    so.write = function (_section_id, value) {
-      return callWriteDomainList('direct_list', value);
-    }
-    so.remove = function (/* ... */) {
-      let routing_mode = this.section.formvalue('config', 'routing_mode');
-      if (routing_mode !== 'custom')
-        return callWriteDomainList('direct_list', '');
-      return true;
-    }
-    so.validate = function (section_id, value) {
-      if (section_id && value)
-        for (let i of value.split('\n'))
-          if (i && !stubValidator.apply('hostname', i))
-            return _('Expecting: %s').format(_('valid hostname'));
-
-      return true;
-    }
+    hpclient.bindDomainListOption(so, 'direct_list');
     /* Direct domain list end */
     /* ACL settings end */
 
