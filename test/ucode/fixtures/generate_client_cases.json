@@ -1,0 +1,59 @@
+[
+  {
+    "id": "bypass_redirect_tproxy_main",
+    "description": "bypass_mainland_china + redirect_tproxy + main_node",
+    "focus": [
+      "dns.servers",
+      "dns.rules",
+      "inbounds",
+      "outbounds",
+      "route.final"
+    ]
+  },
+  {
+    "id": "bypass_redirect_tproxy_dedicated_udp",
+    "description": "bypass_mainland_china + dedicated main_udp_node",
+    "focus": [
+      "outbounds",
+      "endpoints",
+      "route.rules"
+    ]
+  },
+  {
+    "id": "custom_redirect_tun_routing_dns_ruleset",
+    "description": "custom + redirect_tun + dns_server + routing_rule + ruleset",
+    "focus": [
+      "dns.servers",
+      "dns.rules",
+      "inbounds",
+      "route.rules",
+      "route.rule_set"
+    ]
+  },
+  {
+    "id": "custom_tun_wireguard",
+    "description": "custom + tun + wireguard node",
+    "focus": [
+      "inbounds",
+      "endpoints",
+      "route.final"
+    ]
+  },
+  {
+    "id": "custom_urltest_routing_node",
+    "description": "custom + urltest routing_node",
+    "focus": [
+      "outbounds",
+      "route.rules",
+      "route.final"
+    ]
+  },
+  {
+    "id": "custom_remote_ruleset_download_detour",
+    "description": "custom + remote ruleset download_detour",
+    "focus": [
+      "route.rule_set",
+      "route.final"
+    ]
+  }
+]
