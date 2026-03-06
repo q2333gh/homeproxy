@@ -9,7 +9,7 @@ cd cli-go && go test ./...
 ```
 
 - **Unit tests**: help, status, features, resources version, acl list, generator uuid, parseFileFlag, containsString, JSON 输出格式 (`--json`)
-- **Contract tests**: assert the CLI invokes ubus/uci with the expected arguments per [docs/api-reference.md](../docs/api-reference.md)
+- **Contract tests**: assert the CLI invokes ubus/uci with the expected arguments based on command implementations under `cmd/homeproxy/*.go`
 - No host state is modified (no apply, no singbox, no routing, no UCI writes)
 
 ## Integration tests (optional)

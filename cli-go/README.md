@@ -44,6 +44,15 @@ homeproxy docs --out docs/CLI_REFERENCE.md
 
 帮助与 Markdown 文档均从源码元数据生成（from-first-src），无需手写。
 
+## 分享链接导入
+
+`node import` 支持导入分享链接（如 `hy2://`、`ss://`、`trojan://`、`vmess://`、`vless://` 等）和订阅 URL：
+
+```bash
+homeproxy node import 'hy2://password@1.2.3.4:443?sni=example.com#node-a'
+homeproxy node import 'https://example.com/subscription-url'
+```
+
 ## 机器 / LLM 友好输出
 
 部分命令支持 `--json`，方便脚本和 LLM 消费：
