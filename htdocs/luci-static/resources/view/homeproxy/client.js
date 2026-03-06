@@ -259,20 +259,20 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'default_outbound', _('Default outbound'),
       _('Default outbound for connections not matched by any routing rules.'));
-    hpclient.bindSectionListLoad(so, data[0], 'routing_node', [
+    hpclient.bindEnabledRoutingNodeLoad(so, data[0], [
       { value: 'nil', label: _('Disable (the service)') },
       { value: 'direct-out', label: _('Direct') },
       { value: 'block-out', label: _('Block') }
-    ], (res) => res.enabled === '1');
+    ]);
     so.default = 'nil';
     so.rmempty = false;
 
     so = ss.option(form.ListValue, 'default_outbound_dns', _('Default outbound DNS'),
       _('Default DNS server for resolving domain name in the server address.'));
-    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+    hpclient.bindEnabledDnsServerLoad(so, data[0], [
       { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
       { value: 'system-dns', label: _('System DNS') }
-    ], (res) => res.enabled === '1');
+    ]);
     so.default = 'default-dns';
     so.rmempty = false;
     /* Routing settings end */
@@ -311,11 +311,11 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'domain_resolver', _('Domain resolver'),
       _('For resolving domain name in the server address.'));
-    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+    hpclient.bindEnabledDnsServerLoad(so, data[0], [
       { value: '', label: _('Default') },
       { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
       { value: 'system-dns', label: _('System DNS') }
-    ], (res) => res.enabled === '1');
+    ]);
     so.depends({ 'node': 'urltest', '!reverse': true });
     so.modalonly = true;
 
@@ -335,9 +335,9 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'outbound', _('Outbound'),
       _('The tag of the upstream outbound.<br/>Other dial fields will be ignored when enabled.'));
-    hpclient.bindSectionListLoad(so, data[0], 'routing_node', [
+    hpclient.bindEnabledRoutingNodeLoad(so, data[0], [
       { value: '', label: _('Direct') }
-    ], (res, section_id) => res['.name'] !== section_id && res.enabled === '1');
+    ], (res, section_id) => res['.name'] !== section_id);
     so.validate = function (section_id, value) {
       if (section_id && value) {
         let node = this.section.formvalue(section_id, 'node');
@@ -512,7 +512,7 @@ return view.extend({
 
     so = ss.taboption('field_other', hp.CBIStaticList, 'rule_set', _('Rule set'),
       _('Match rule set.'));
-    hpclient.bindSectionListLoad(so, data[0], 'ruleset', [], (res) => res.enabled === '1');
+    hpclient.bindEnabledRuleSetLoad(so, data[0]);
     so.modalonly = true;
 
     so = ss.taboption('field_other', form.Flag, 'rule_set_ip_cidr_match_source', _('Rule set IP CIDR as source IP'),
@@ -534,9 +534,9 @@ return view.extend({
 
     so = ss.taboption('field_other', form.ListValue, 'outbound', _('Outbound'),
       _('Tag of the target outbound.'));
-    hpclient.bindSectionListLoad(so, data[0], 'routing_node', [
+    hpclient.bindEnabledRoutingNodeLoad(so, data[0], [
       { value: 'direct-out', label: _('Direct') }
-    ], (res) => res.enabled === '1');
+    ]);
     so.rmempty = false;
     so.depends('action', 'route');
     so.editable = true;
@@ -596,11 +596,11 @@ return view.extend({
 
     so = ss.taboption('field_other', form.ListValue, 'resolve_server', _('DNS server'),
       _('Specifies DNS server tag to use instead of selecting through DNS routing.'));
-    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+    hpclient.bindEnabledDnsServerLoad(so, data[0], [
       { value: '', label: _('Default') },
       { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
       { value: 'system-dns', label: _('System DNS') }
-    ], (res) => res.enabled === '1');
+    ]);
     so.depends('action', 'resolve');
     so.modalonly = true;
 
@@ -719,10 +719,10 @@ return view.extend({
       so.value(i, hp.dns_strategy[i]);
 
     so = ss.option(form.ListValue, 'default_server', _('Default DNS server'));
-    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+    hpclient.bindEnabledDnsServerLoad(so, data[0], [
       { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
       { value: 'system-dns', label: _('System DNS') }
-    ], (res) => res.enabled === '1');
+    ]);
     so.default = 'default-dns';
     so.rmempty = false;
 
@@ -817,11 +817,11 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'address_resolver', _('Address resolver'),
       _('Tag of a another server to resolve the domain name in the address. Required if address contains domain.'));
-    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+    hpclient.bindEnabledDnsServerLoad(so, data[0], [
       { value: '', label: _('None') },
       { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
       { value: 'system-dns', label: _('System DNS') }
-    ], (res, section_id) => res['.name'] !== section_id && res.enabled === '1');
+    ], (res, section_id) => res['.name'] !== section_id);
     so.validate = function (section_id, value) {
       if (section_id && value) {
         let conflict = false;
@@ -847,9 +847,9 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'outbound', _('Outbound'),
       _('Tag of an outbound for connecting to the dns server.'));
-    hpclient.bindSectionListLoad(so, data[0], 'routing_node', [
+    hpclient.bindEnabledRoutingNodeLoad(so, data[0], [
       { value: 'direct-out', label: _('Direct') }
-    ], (res) => res.enabled === '1');
+    ]);
     so.default = 'direct-out';
     so.rmempty = false;
     so.editable = true;
@@ -930,7 +930,7 @@ return view.extend({
 
     so = ss.taboption('field_other', hp.CBIStaticList, 'rule_set', _('Rule set'),
       _('Match rule set.'));
-    hpclient.bindSectionListLoad(so, data[0], 'ruleset', [], (res) => res.enabled === '1');
+    hpclient.bindEnabledRuleSetLoad(so, data[0]);
     so.modalonly = true;
 
     so = ss.taboption('field_other', form.Flag, 'rule_set_ip_cidr_match_source', _('Rule set IP CIDR as source IP'),
@@ -956,10 +956,10 @@ return view.extend({
 
     so = ss.taboption('field_other', form.ListValue, 'server', _('Server'),
       _('Tag of the target dns server.'));
-    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+    hpclient.bindEnabledDnsServerLoad(so, data[0], [
       { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
       { value: 'system-dns', label: _('System DNS') }
-    ], (res) => res.enabled === '1');
+    ]);
     so.rmempty = false;
     so.editable = true;
     so.depends('action', 'route');
@@ -1167,10 +1167,10 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'outbound', _('Outbound'),
       _('Tag of the outbound to download rule set.'));
-    hpclient.bindSectionListLoad(so, data[0], 'routing_node', [
+    hpclient.bindEnabledRoutingNodeLoad(so, data[0], [
       { value: '', label: _('Default') },
       { value: 'direct-out', label: _('Direct') }
-    ], (res) => res.enabled === '1');
+    ]);
     so.depends('type', 'remote');
 
     so = ss.option(form.Value, 'update_interval', _('Update interval'),

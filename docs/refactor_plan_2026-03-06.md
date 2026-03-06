@@ -112,6 +112,50 @@
 
 - LuCI 运行环境不是标准前端工程，模块拆分要遵守其加载方式，不能直接照搬现代打包器思路
 
+### 阶段 B 复核结论与 B.5 收尾
+
+复核时间：2026-03-06
+
+结论：
+
+- 阶段 B 的方向正确，但完成度只有一半
+- `client.js` 已经出现有效收敛，页面文件中的重复 `load()`、DNS 校验和域名列表读写被集中
+- `node.js` 仍存在“复杂度搬家”问题：页面文件变短了，但分享链接解析和导入流程被集中到新的共享模块中，单点复杂度仍然过高
+
+从第一性原理看，阶段 B 之后还需要满足以下条件，才算真正完成：
+
+1. 模块边界要稳定，不只是把大段代码从页面文件挪到公共文件
+2. 共享抽象要表达领域语义，而不是只抽出循环模板
+3. 中心化 helper 增加后，必须同步增加最小回归护栏，否则只是把风险从多个点收束到一个更危险的单点
+
+本轮复核识别出的主要问题：
+
+1. `homeproxy/node.js` 中分享链接解析仍是超长分发器，导入流程仍混合了 UI、解析、归一化、UCI 写入和刷新逻辑
+2. `homeproxy/client.js` 中 `bindSectionListLoad()` 虽然减少重复，但抽象层级偏低，未直接表达“启用的 DNS server / routing node / rule set”这样的领域语义
+3. 阶段 B 尚未同步引入对应的最小回归样例，公共 helper 的扇出已经增大，但验证护栏还没有补齐
+
+因此增加一个阶段 B.5，作为 LuCI JS 拆分的收尾：
+
+任务：
+
+1. 将 `homeproxy/node.js` 继续拆为：
+   - 分享链接协议解析函数
+   - 解析结果归一化函数
+   - 节点导入与 UCI 写入函数
+   - UI 弹窗装配函数
+2. 将 `homeproxy/client.js` 的通用 section loader 继续收敛为语义化 loader：
+   - enabled DNS server
+   - enabled routing node
+   - enabled rule set
+3. 为后续测试阶段预留稳定入口，确保 parser / loader helper 可以被单独审查和最小样例覆盖
+
+阶段 B.5 验收标准：
+
+- `view/homeproxy/node.js` 继续保持装配层角色
+- `homeproxy/node.js` 中不再由单一函数同时承担解析、归一化、导入、UI 刷新四类职责
+- `homeproxy/client.js` 调用点不再反复书写“sectionType + enabled predicate”这种低语义模板
+- LuCI JS 的后续变更可以在更小的函数级别上完成审查
+
 ### 阶段 C：拆分 ucode 配置生成链路
 
 目标：把 `generate_client.uc` 从“单文件大对象拼装”改成“分段生成、分层装配”。

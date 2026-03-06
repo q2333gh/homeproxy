@@ -141,10 +141,29 @@ function bindSectionListLoad(option, uciconfig, sectionType, baseValues, predica
 	return option;
 }
 
+function bindEnabledDnsServerLoad(option, uciconfig, baseValues, predicate) {
+	return bindSectionListLoad(option, uciconfig, 'dns_server', baseValues, (res, section_id) => {
+		return res.enabled === '1' && (!predicate || predicate(res, section_id));
+	});
+}
+
+function bindEnabledRoutingNodeLoad(option, uciconfig, baseValues, predicate) {
+	return bindSectionListLoad(option, uciconfig, 'routing_node', baseValues, (res, section_id) => {
+		return res.enabled === '1' && (!predicate || predicate(res, section_id));
+	});
+}
+
+function bindEnabledRuleSetLoad(option, uciconfig) {
+	return bindSectionListLoad(option, uciconfig, 'ruleset', [], (res) => res.enabled === '1');
+}
+
 return {
 	callReadDomainList,
 	callWriteDomainList,
 	bindDomainListOption,
+	bindEnabledDnsServerLoad,
+	bindEnabledRoutingNodeLoad,
+	bindEnabledRuleSetLoad,
 	bindSectionListLoad,
 	getServiceStatus,
 	renderStatus,
