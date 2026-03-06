@@ -177,6 +177,132 @@ function appendTLSOptions(s, features) {
 	/* TLS config end */
 }
 
+function appendTransportOptions(s, features) {
+	let o;
+
+	/* Transport config start */
+	o = s.option(form.ListValue, 'transport', _('Transport'),
+		_('No TCP transport, plain HTTP is merged into the HTTP transport.'));
+	o.value('', _('None'));
+	o.value('grpc', _('gRPC'));
+	o.value('http', _('HTTP'));
+	o.value('httpupgrade', _('HTTPUpgrade'));
+	o.value('quic', _('QUIC'));
+	o.value('ws', _('WebSocket'));
+	o.depends('type', 'trojan');
+	o.depends('type', 'vless');
+	o.depends('type', 'vmess');
+	o.onchange = function(ev, section_id, value) {
+		let desc = this.map.findElement('id', 'cbid.homeproxy.%s.transport'.format(section_id)).nextElementSibling;
+		if (value === 'http')
+			desc.innerHTML = _('TLS is not enforced. If TLS is not configured, plain HTTP 1.1 is used.');
+		else if (value === 'quic')
+			desc.innerHTML = _('No additional encryption support: It\'s basically duplicate encryption.');
+		else
+			desc.innerHTML = _('No TCP transport, plain HTTP is merged into the HTTP transport.');
+
+		let tls = this.map.findElement('id', 'cbid.homeproxy.%s.tls'.format(section_id)).firstElementChild;
+		if ((value === 'http' && tls.checked) || (value === 'grpc' && !features.with_grpc)) {
+			this.map.findElement('id', 'cbid.homeproxy.%s.http_idle_timeout'.format(section_id)).nextElementSibling.innerHTML =
+				_('Specifies the period of time (in seconds) after which a health check will be performed using a ping frame if no frames have been received on the connection.<br/>' +
+					'Please note that a ping response is considered a received frame, so if there is no other traffic on the connection, the health check will be executed every interval.');
+
+			this.map.findElement('id', 'cbid.homeproxy.%s.http_ping_timeout'.format(section_id)).nextElementSibling.innerHTML =
+				_('Specifies the timeout duration (in seconds) after sending a PING frame, within which a response must be received.<br/>' +
+					'If a response to the PING frame is not received within the specified timeout duration, the connection will be closed.');
+		} else if (value === 'grpc' && features.with_grpc) {
+			this.map.findElement('id', 'cbid.homeproxy.%s.http_idle_timeout'.format(section_id)).nextElementSibling.innerHTML =
+				_('If the transport doesn\'t see any activity after a duration of this time (in seconds), it pings the client to check if the connection is still active.');
+
+			this.map.findElement('id', 'cbid.homeproxy.%s.http_ping_timeout'.format(section_id)).nextElementSibling.innerHTML =
+				_('The timeout (in seconds) that after performing a keepalive check, the client will wait for activity. If no activity is detected, the connection will be closed.');
+		}
+	}
+	o.modalonly = true;
+
+	/* gRPC config start */
+	o = s.option(form.Value, 'grpc_servicename', _('gRPC service name'));
+	o.depends('transport', 'grpc');
+	o.modalonly = true;
+
+	if (features.with_grpc) {
+		o = s.option(form.Flag, 'grpc_permit_without_stream', _('gRPC permit without stream'),
+			_('If enabled, the client transport sends keepalive pings even with no active connections.'));
+		o.depends('transport', 'grpc');
+		o.modalonly = true;
+	}
+	/* gRPC config end */
+
+	/* HTTP(Upgrade) config start */
+	o = s.option(form.DynamicList, 'http_host', _('Host'));
+	o.datatype = 'hostname';
+	o.depends('transport', 'http');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'httpupgrade_host', _('Host'));
+	o.datatype = 'hostname';
+	o.depends('transport', 'httpupgrade');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'http_path', _('Path'));
+	o.depends('transport', 'http');
+	o.depends('transport', 'httpupgrade');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'http_method', _('Method'));
+	o.value('GET', _('GET'));
+	o.value('PUT', _('PUT'));
+	o.depends('transport', 'http');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'http_idle_timeout', _('Idle timeout'),
+		_('Specifies the period of time (in seconds) after which a health check will be performed using a ping frame if no frames have been received on the connection.<br/>' +
+			'Please note that a ping response is considered a received frame, so if there is no other traffic on the connection, the health check will be executed every interval.'));
+	o.datatype = 'uinteger';
+	o.depends('transport', 'grpc');
+	o.depends({'transport': 'http', 'tls': '1'});
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'http_ping_timeout', _('Ping timeout'),
+		_('Specifies the timeout duration (in seconds) after sending a PING frame, within which a response must be received.<br/>' +
+			'If a response to the PING frame is not received within the specified timeout duration, the connection will be closed.'));
+	o.datatype = 'uinteger';
+	o.depends('transport', 'grpc');
+	o.depends({'transport': 'http', 'tls': '1'});
+	o.modalonly = true;
+	/* HTTP config end */
+
+	/* WebSocket config start */
+	o = s.option(form.Value, 'ws_host', _('Host'));
+	o.depends('transport', 'ws');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'ws_path', _('Path'));
+	o.depends('transport', 'ws');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'websocket_early_data', _('Early data'),
+		_('Allowed payload size is in the request.'));
+	o.datatype = 'uinteger';
+	o.value('2048');
+	o.depends('transport', 'ws');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'websocket_early_data_header', _('Early data header name'));
+	o.value('Sec-WebSocket-Protocol');
+	o.depends('transport', 'ws');
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'packet_encoding', _('Packet encoding'));
+	o.value('', _('none'));
+	o.value('packetaddr', _('packet addr (v2ray-core v5+)'));
+	o.value('xudp', _('Xudp (Xray-core)'));
+	o.depends('type', 'vless');
+	o.depends('type', 'vmess');
+	o.modalonly = true;
+	/* Transport config end */
+}
+
 function renderNodeSettings(section, data, features, main_node, routing_mode) {
 	let s = section, o;
 	s.rowcolors = true;
@@ -558,128 +684,7 @@ function renderNodeSettings(section, data, features, main_node, routing_mode) {
 	o.modalonly = true;
 	/* VMess config end */
 
-	/* Transport config start */
-	o = s.option(form.ListValue, 'transport', _('Transport'),
-		_('No TCP transport, plain HTTP is merged into the HTTP transport.'));
-	o.value('', _('None'));
-	o.value('grpc', _('gRPC'));
-	o.value('http', _('HTTP'));
-	o.value('httpupgrade', _('HTTPUpgrade'));
-	o.value('quic', _('QUIC'));
-	o.value('ws', _('WebSocket'));
-	o.depends('type', 'trojan');
-	o.depends('type', 'vless');
-	o.depends('type', 'vmess');
-	o.onchange = function(ev, section_id, value) {
-		let desc = this.map.findElement('id', 'cbid.homeproxy.%s.transport'.format(section_id)).nextElementSibling;
-		if (value === 'http')
-			desc.innerHTML = _('TLS is not enforced. If TLS is not configured, plain HTTP 1.1 is used.');
-		else if (value === 'quic')
-			desc.innerHTML = _('No additional encryption support: It\'s basically duplicate encryption.');
-		else
-			desc.innerHTML = _('No TCP transport, plain HTTP is merged into the HTTP transport.');
-
-		let tls = this.map.findElement('id', 'cbid.homeproxy.%s.tls'.format(section_id)).firstElementChild;
-		if ((value === 'http' && tls.checked) || (value === 'grpc' && !features.with_grpc)) {
-			this.map.findElement('id', 'cbid.homeproxy.%s.http_idle_timeout'.format(section_id)).nextElementSibling.innerHTML =
-				_('Specifies the period of time (in seconds) after which a health check will be performed using a ping frame if no frames have been received on the connection.<br/>' +
-					'Please note that a ping response is considered a received frame, so if there is no other traffic on the connection, the health check will be executed every interval.');
-
-			this.map.findElement('id', 'cbid.homeproxy.%s.http_ping_timeout'.format(section_id)).nextElementSibling.innerHTML =
-				_('Specifies the timeout duration (in seconds) after sending a PING frame, within which a response must be received.<br/>' +
-					'If a response to the PING frame is not received within the specified timeout duration, the connection will be closed.');
-		} else if (value === 'grpc' && features.with_grpc) {
-			this.map.findElement('id', 'cbid.homeproxy.%s.http_idle_timeout'.format(section_id)).nextElementSibling.innerHTML =
-				_('If the transport doesn\'t see any activity after a duration of this time (in seconds), it pings the client to check if the connection is still active.');
-
-			this.map.findElement('id', 'cbid.homeproxy.%s.http_ping_timeout'.format(section_id)).nextElementSibling.innerHTML =
-				_('The timeout (in seconds) that after performing a keepalive check, the client will wait for activity. If no activity is detected, the connection will be closed.');
-		}
-	}
-	o.modalonly = true;
-
-	/* gRPC config start */
-	o = s.option(form.Value, 'grpc_servicename', _('gRPC service name'));
-	o.depends('transport', 'grpc');
-	o.modalonly = true;
-
-	if (features.with_grpc) {
-		o = s.option(form.Flag, 'grpc_permit_without_stream', _('gRPC permit without stream'),
-			_('If enabled, the client transport sends keepalive pings even with no active connections.'));
-		o.depends('transport', 'grpc');
-		o.modalonly = true;
-	}
-	/* gRPC config end */
-
-	/* HTTP(Upgrade) config start */
-	o = s.option(form.DynamicList, 'http_host', _('Host'));
-	o.datatype = 'hostname';
-	o.depends('transport', 'http');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'httpupgrade_host', _('Host'));
-	o.datatype = 'hostname';
-	o.depends('transport', 'httpupgrade');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'http_path', _('Path'));
-	o.depends('transport', 'http');
-	o.depends('transport', 'httpupgrade');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'http_method', _('Method'));
-	o.value('GET', _('GET'));
-	o.value('PUT', _('PUT'));
-	o.depends('transport', 'http');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'http_idle_timeout', _('Idle timeout'),
-		_('Specifies the period of time (in seconds) after which a health check will be performed using a ping frame if no frames have been received on the connection.<br/>' +
-			'Please note that a ping response is considered a received frame, so if there is no other traffic on the connection, the health check will be executed every interval.'));
-	o.datatype = 'uinteger';
-	o.depends('transport', 'grpc');
-	o.depends({'transport': 'http', 'tls': '1'});
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'http_ping_timeout', _('Ping timeout'),
-		_('Specifies the timeout duration (in seconds) after sending a PING frame, within which a response must be received.<br/>' +
-			'If a response to the PING frame is not received within the specified timeout duration, the connection will be closed.'));
-	o.datatype = 'uinteger';
-	o.depends('transport', 'grpc');
-	o.depends({'transport': 'http', 'tls': '1'});
-	o.modalonly = true;
-	/* HTTP config end */
-
-	/* WebSocket config start */
-	o = s.option(form.Value, 'ws_host', _('Host'));
-	o.depends('transport', 'ws');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'ws_path', _('Path'));
-	o.depends('transport', 'ws');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'websocket_early_data', _('Early data'),
-		_('Allowed payload size is in the request.'));
-	o.datatype = 'uinteger';
-	o.value('2048');
-	o.depends('transport', 'ws');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'websocket_early_data_header', _('Early data header name'));
-	o.value('Sec-WebSocket-Protocol');
-	o.depends('transport', 'ws');
-	o.modalonly = true;
-	/* WebSocket config end */
-
-	o = s.option(form.ListValue, 'packet_encoding', _('Packet encoding'));
-	o.value('', _('none'));
-	o.value('packetaddr', _('packet addr (v2ray-core v5+)'));
-	o.value('xudp', _('Xudp (Xray-core)'));
-	o.depends('type', 'vless');
-	o.depends('type', 'vmess');
-	o.modalonly = true;
-	/* Transport config end */
+	appendTransportOptions(s, features);
 
 	/* Wireguard config start */
 	o = s.option(form.DynamicList, 'wireguard_local_address', _('Local address'),
