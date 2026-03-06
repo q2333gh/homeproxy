@@ -21,3 +21,9 @@ test('generate_client still emits dedicated redirect, tproxy and tun inbounds', 
   assert.match(source, /tag: 'tproxy-in'/);
   assert.match(source, /tag: 'tun-in'/);
 });
+
+test('generate_client builds explicit context before assembling config', () => {
+  assert.match(source, /function build_context\(\)/);
+  assert.match(source, /const ctx = build_context\(\);/);
+  assert.match(source, /const routing_mode = ctx\.routing_mode,/);
+});

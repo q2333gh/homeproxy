@@ -42,101 +42,128 @@ const uciroutingsetting = 'routing',
 const ucinode = 'node';
 const uciruleset = 'ruleset';
 
-const routing_mode = uci.get(uciconfig, ucimain, 'routing_mode') || 'bypass_mainland_china';
+function read_domain_list(path) {
+	let content = trim(readfile(path));
+	return content ? split(content, /[\r\n]/) : null;
+}
 
-let wan_dns = ubus.call('network.interface', 'status', {'interface': 'wan'})?.['dns-server']?.[0];
-if (!wan_dns)
-	wan_dns = (routing_mode in ['proxy_mainland_china', 'global']) ? '8.8.8.8' : '223.5.5.5';
+function build_context() {
+	const routing_mode = uci.get(uciconfig, ucimain, 'routing_mode') || 'bypass_mainland_china';
+	let wan_dns = ubus.call('network.interface', 'status', {'interface': 'wan'})?.['dns-server']?.[0];
+	if (!wan_dns)
+		wan_dns = (routing_mode in ['proxy_mainland_china', 'global']) ? '8.8.8.8' : '223.5.5.5';
 
-const dns_port = uci.get(uciconfig, uciinfra, 'dns_port') || '5333';
+	let ctx = {
+		routing_mode: routing_mode,
+		proxy_mode: uci.get(uciconfig, ucimain, 'proxy_mode') || 'redirect_tproxy',
+		log_level: uci.get(uciconfig, ucimain, 'log_level') || 'warn',
+		ipv6_support: uci.get(uciconfig, ucimain, 'ipv6_support') || '0',
+		wan_dns: wan_dns,
+		dns_port: uci.get(uciconfig, uciinfra, 'dns_port') || '5333',
+		mixed_port: uci.get(uciconfig, uciinfra, 'mixed_port') || '5330',
+		ntp_server: uci.get(uciconfig, uciinfra, 'ntp_server') || 'time.apple.com',
+		default_interface: uci.get(uciconfig, ucicontrol, 'bind_interface')
+	};
 
-const ntp_server = uci.get(uciconfig, uciinfra, 'ntp_server') || 'time.apple.com';
+	if (routing_mode !== 'custom') {
+		ctx.main_node = uci.get(uciconfig, ucimain, 'main_node') || 'nil';
+		ctx.main_udp_node = uci.get(uciconfig, ucimain, 'main_udp_node') || 'nil';
+		ctx.dedicated_udp_node = !isEmpty(ctx.main_udp_node) && !(ctx.main_udp_node in ['same', ctx.main_node]);
 
-const ipv6_support = uci.get(uciconfig, ucimain, 'ipv6_support') || '0';
+		ctx.dns_server = uci.get(uciconfig, ucimain, 'dns_server');
+		if (isEmpty(ctx.dns_server) || ctx.dns_server === 'wan')
+			ctx.dns_server = ctx.wan_dns;
 
-let main_node, main_udp_node, dedicated_udp_node, default_outbound, default_outbound_dns,
-    domain_strategy, sniff_override, dns_server, china_dns_server, dns_default_strategy,
-    dns_default_server, dns_disable_cache, dns_disable_cache_expire, dns_independent_cache,
-    dns_client_subnet, cache_file_store_rdrc, cache_file_rdrc_timeout, direct_domain_list,
-    proxy_domain_list;
+		if (routing_mode === 'bypass_mainland_china') {
+			ctx.china_dns_server = uci.get(uciconfig, ucimain, 'china_dns_server');
+			if (isEmpty(ctx.china_dns_server) || type(ctx.china_dns_server) !== 'string' || ctx.china_dns_server === 'wan')
+				ctx.china_dns_server = ctx.wan_dns;
+		}
 
-if (routing_mode !== 'custom') {
-	main_node = uci.get(uciconfig, ucimain, 'main_node') || 'nil';
-	main_udp_node = uci.get(uciconfig, ucimain, 'main_udp_node') || 'nil';
-	dedicated_udp_node = !isEmpty(main_udp_node) && !(main_udp_node in ['same', main_node]);
-
-	dns_server = uci.get(uciconfig, ucimain, 'dns_server');
-	if (isEmpty(dns_server) || dns_server === 'wan')
-		dns_server = wan_dns;
-
-	if (routing_mode === 'bypass_mainland_china') {
-		china_dns_server = uci.get(uciconfig, ucimain, 'china_dns_server');
-		if (isEmpty(china_dns_server) || type(china_dns_server) !== 'string' || china_dns_server === 'wan')
-			china_dns_server = wan_dns;
+		ctx.dns_default_strategy = (ctx.ipv6_support !== '1') ? 'ipv4_only' : null;
+		ctx.direct_domain_list = read_domain_list(HP_DIR + '/resources/direct_list.txt');
+		ctx.proxy_domain_list = read_domain_list(HP_DIR + '/resources/proxy_list.txt');
+		ctx.sniff_override = uci.get(uciconfig, uciinfra, 'sniff_override') || '1';
+	} else {
+		ctx.dns_default_strategy = uci.get(uciconfig, ucidnssetting, 'default_strategy');
+		ctx.dns_default_server = uci.get(uciconfig, ucidnssetting, 'default_server');
+		ctx.dns_disable_cache = uci.get(uciconfig, ucidnssetting, 'disable_cache');
+		ctx.dns_disable_cache_expire = uci.get(uciconfig, ucidnssetting, 'disable_cache_expire');
+		ctx.dns_independent_cache = uci.get(uciconfig, ucidnssetting, 'independent_cache');
+		ctx.dns_client_subnet = uci.get(uciconfig, ucidnssetting, 'client_subnet');
+		ctx.cache_file_store_rdrc = uci.get(uciconfig, ucidnssetting, 'cache_file_store_rdrc');
+		ctx.cache_file_rdrc_timeout = uci.get(uciconfig, ucidnssetting, 'cache_file_rdrc_timeout');
+		ctx.default_outbound = uci.get(uciconfig, uciroutingsetting, 'default_outbound') || 'nil';
+		ctx.default_outbound_dns = uci.get(uciconfig, uciroutingsetting, 'default_outbound_dns') || 'default-dns';
+		ctx.domain_strategy = uci.get(uciconfig, uciroutingsetting, 'domain_strategy');
+		ctx.sniff_override = uci.get(uciconfig, uciroutingsetting, 'sniff_override');
 	}
-	dns_default_strategy = (ipv6_support !== '1') ? 'ipv4_only' : null;
 
-	direct_domain_list = trim(readfile(HP_DIR + '/resources/direct_list.txt'));
-	if (direct_domain_list)
-		direct_domain_list = split(direct_domain_list, /[\r\n]/);
+	ctx.udp_timeout = (routing_mode === 'custom') ?
+		uci.get(uciconfig, uciroutingsetting, 'udp_timeout') :
+		uci.get(uciconfig, 'infra', 'udp_timeout');
 
-	proxy_domain_list = trim(readfile(HP_DIR + '/resources/proxy_list.txt'));
-	if (proxy_domain_list)
-		proxy_domain_list = split(proxy_domain_list, /[\r\n]/);
-
-	sniff_override = uci.get(uciconfig, uciinfra, 'sniff_override') || '1';
-} else {
-	/* DNS settings */
-	dns_default_strategy = uci.get(uciconfig, ucidnssetting, 'default_strategy');
-	dns_default_server = uci.get(uciconfig, ucidnssetting, 'default_server');
-	dns_disable_cache = uci.get(uciconfig, ucidnssetting, 'disable_cache');
-	dns_disable_cache_expire = uci.get(uciconfig, ucidnssetting, 'disable_cache_expire');
-	dns_independent_cache = uci.get(uciconfig, ucidnssetting, 'independent_cache');
-	dns_client_subnet = uci.get(uciconfig, ucidnssetting, 'client_subnet');
-	cache_file_store_rdrc = uci.get(uciconfig, ucidnssetting, 'cache_file_store_rdrc'),
-	cache_file_rdrc_timeout = uci.get(uciconfig, ucidnssetting, 'cache_file_rdrc_timeout');
-
-	/* Routing settings */
-	default_outbound = uci.get(uciconfig, uciroutingsetting, 'default_outbound') || 'nil';
-	default_outbound_dns = uci.get(uciconfig, uciroutingsetting, 'default_outbound_dns') || 'default-dns';
-	domain_strategy = uci.get(uciconfig, uciroutingsetting, 'domain_strategy');
-	sniff_override = uci.get(uciconfig, uciroutingsetting, 'sniff_override');
-}
-
-const proxy_mode = uci.get(uciconfig, ucimain, 'proxy_mode') || 'redirect_tproxy',
-      default_interface = uci.get(uciconfig, ucicontrol, 'bind_interface');
-
-const mixed_port = uci.get(uciconfig, uciinfra, 'mixed_port') || '5330';
-
-let self_mark, redirect_port, tproxy_port, tun_name,
-    tun_addr4, tun_addr6, tun_mtu, tcpip_stack,
-    endpoint_independent_nat, udp_timeout;
-
-if (routing_mode === 'custom')
-	udp_timeout = uci.get(uciconfig, uciroutingsetting, 'udp_timeout');
-else
-	udp_timeout = uci.get(uciconfig, 'infra', 'udp_timeout');
-
-if (match(proxy_mode, /redirect/)) {
-	self_mark = uci.get(uciconfig, 'infra', 'self_mark') || '100';
-	redirect_port = uci.get(uciconfig, 'infra', 'redirect_port') || '5331';
-}
-if (match(proxy_mode, /tproxy/))
-	if (main_udp_node !== 'nil' || routing_mode === 'custom')
-		tproxy_port = uci.get(uciconfig, 'infra', 'tproxy_port') || '5332';
-if (match(proxy_mode, /tun/)) {
-	tun_name = uci.get(uciconfig, uciinfra, 'tun_name') || 'singtun0';
-	tun_addr4 = uci.get(uciconfig, uciinfra, 'tun_addr4') || '172.19.0.1/30';
-	tun_addr6 = uci.get(uciconfig, uciinfra, 'tun_addr6') || 'fdfe:dcba:9876::1/126';
-	tun_mtu = uci.get(uciconfig, uciinfra, 'tun_mtu') || '9000';
-	tcpip_stack = 'system';
-	if (routing_mode === 'custom') {
-		tcpip_stack = uci.get(uciconfig, uciroutingsetting, 'tcpip_stack') || 'system';
-		endpoint_independent_nat = uci.get(uciconfig, uciroutingsetting, 'endpoint_independent_nat');
+	if (match(ctx.proxy_mode, /redirect/)) {
+		ctx.self_mark = uci.get(uciconfig, 'infra', 'self_mark') || '100';
+		ctx.redirect_port = uci.get(uciconfig, 'infra', 'redirect_port') || '5331';
 	}
+	if (match(ctx.proxy_mode, /tproxy/))
+		if (ctx.main_udp_node !== 'nil' || routing_mode === 'custom')
+			ctx.tproxy_port = uci.get(uciconfig, 'infra', 'tproxy_port') || '5332';
+	if (match(ctx.proxy_mode, /tun/)) {
+		ctx.tun_name = uci.get(uciconfig, uciinfra, 'tun_name') || 'singtun0';
+		ctx.tun_addr4 = uci.get(uciconfig, uciinfra, 'tun_addr4') || '172.19.0.1/30';
+		ctx.tun_addr6 = uci.get(uciconfig, uciinfra, 'tun_addr6') || 'fdfe:dcba:9876::1/126';
+		ctx.tun_mtu = uci.get(uciconfig, uciinfra, 'tun_mtu') || '9000';
+		ctx.tcpip_stack = 'system';
+		if (routing_mode === 'custom') {
+			ctx.tcpip_stack = uci.get(uciconfig, uciroutingsetting, 'tcpip_stack') || 'system';
+			ctx.endpoint_independent_nat = uci.get(uciconfig, uciroutingsetting, 'endpoint_independent_nat');
+		}
+	}
+
+	return ctx;
 }
 
-const log_level = uci.get(uciconfig, ucimain, 'log_level') || 'warn';
+const ctx = build_context();
+const routing_mode = ctx.routing_mode,
+      proxy_mode = ctx.proxy_mode,
+      log_level = ctx.log_level,
+      ipv6_support = ctx.ipv6_support,
+      wan_dns = ctx.wan_dns,
+      dns_port = ctx.dns_port,
+      mixed_port = ctx.mixed_port,
+      ntp_server = ctx.ntp_server,
+      default_interface = ctx.default_interface,
+      main_node = ctx.main_node,
+      main_udp_node = ctx.main_udp_node,
+      dedicated_udp_node = ctx.dedicated_udp_node,
+      default_outbound = ctx.default_outbound,
+      default_outbound_dns = ctx.default_outbound_dns,
+      domain_strategy = ctx.domain_strategy,
+      sniff_override = ctx.sniff_override,
+      dns_server = ctx.dns_server,
+      china_dns_server = ctx.china_dns_server,
+      dns_default_strategy = ctx.dns_default_strategy,
+      dns_default_server = ctx.dns_default_server,
+      dns_disable_cache = ctx.dns_disable_cache,
+      dns_disable_cache_expire = ctx.dns_disable_cache_expire,
+      dns_independent_cache = ctx.dns_independent_cache,
+      dns_client_subnet = ctx.dns_client_subnet,
+      cache_file_store_rdrc = ctx.cache_file_store_rdrc,
+      cache_file_rdrc_timeout = ctx.cache_file_rdrc_timeout,
+      direct_domain_list = ctx.direct_domain_list,
+      proxy_domain_list = ctx.proxy_domain_list,
+      self_mark = ctx.self_mark,
+      redirect_port = ctx.redirect_port,
+      tproxy_port = ctx.tproxy_port,
+      tun_name = ctx.tun_name,
+      tun_addr4 = ctx.tun_addr4,
+      tun_addr6 = ctx.tun_addr6,
+      tun_mtu = ctx.tun_mtu,
+      tcpip_stack = ctx.tcpip_stack,
+      endpoint_independent_nat = ctx.endpoint_independent_nat,
+      udp_timeout = ctx.udp_timeout;
 /* UCI config end */
 
 /* Config helper start */
