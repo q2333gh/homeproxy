@@ -259,38 +259,20 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'default_outbound', _('Default outbound'),
       _('Default outbound for connections not matched by any routing rules.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('nil', _('Disable (the service)'));
-      this.value('direct-out', _('Direct'));
-      this.value('block-out', _('Block'));
-      uci.sections(data[0], 'routing_node', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'routing_node', [
+      { value: 'nil', label: _('Disable (the service)') },
+      { value: 'direct-out', label: _('Direct') },
+      { value: 'block-out', label: _('Block') }
+    ], (res) => res.enabled === '1');
     so.default = 'nil';
     so.rmempty = false;
 
     so = ss.option(form.ListValue, 'default_outbound_dns', _('Default outbound DNS'),
       _('Default DNS server for resolving domain name in the server address.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('default-dns', _('Default DNS (issued by WAN)'));
-      this.value('system-dns', _('System DNS'));
-      uci.sections(data[0], 'dns_server', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+      { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
+      { value: 'system-dns', label: _('System DNS') }
+    ], (res) => res.enabled === '1');
     so.default = 'default-dns';
     so.rmempty = false;
     /* Routing settings end */
@@ -329,20 +311,11 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'domain_resolver', _('Domain resolver'),
       _('For resolving domain name in the server address.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('', _('Default'));
-      this.value('default-dns', _('Default DNS (issued by WAN)'));
-      this.value('system-dns', _('System DNS'));
-      uci.sections(data[0], 'dns_server', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+      { value: '', label: _('Default') },
+      { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
+      { value: 'system-dns', label: _('System DNS') }
+    ], (res) => res.enabled === '1');
     so.depends({ 'node': 'urltest', '!reverse': true });
     so.modalonly = true;
 
@@ -362,18 +335,9 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'outbound', _('Outbound'),
       _('The tag of the upstream outbound.<br/>Other dial fields will be ignored when enabled.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('', _('Direct'));
-      uci.sections(data[0], 'routing_node', (res) => {
-        if (res['.name'] !== section_id && res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'routing_node', [
+      { value: '', label: _('Direct') }
+    ], (res, section_id) => res['.name'] !== section_id && res.enabled === '1');
     so.validate = function (section_id, value) {
       if (section_id && value) {
         let node = this.section.formvalue(section_id, 'node');
@@ -548,17 +512,7 @@ return view.extend({
 
     so = ss.taboption('field_other', hp.CBIStaticList, 'rule_set', _('Rule set'),
       _('Match rule set.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      uci.sections(data[0], 'ruleset', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'ruleset', [], (res) => res.enabled === '1');
     so.modalonly = true;
 
     so = ss.taboption('field_other', form.Flag, 'rule_set_ip_cidr_match_source', _('Rule set IP CIDR as source IP'),
@@ -580,18 +534,9 @@ return view.extend({
 
     so = ss.taboption('field_other', form.ListValue, 'outbound', _('Outbound'),
       _('Tag of the target outbound.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('direct-out', _('Direct'));
-      uci.sections(data[0], 'routing_node', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'routing_node', [
+      { value: 'direct-out', label: _('Direct') }
+    ], (res) => res.enabled === '1');
     so.rmempty = false;
     so.depends('action', 'route');
     so.editable = true;
@@ -651,20 +596,11 @@ return view.extend({
 
     so = ss.taboption('field_other', form.ListValue, 'resolve_server', _('DNS server'),
       _('Specifies DNS server tag to use instead of selecting through DNS routing.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('', _('Default'));
-      this.value('default-dns', _('Default DNS (issued by WAN)'));
-      this.value('system-dns', _('System DNS'));
-      uci.sections(data[0], 'dns_server', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+      { value: '', label: _('Default') },
+      { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
+      { value: 'system-dns', label: _('System DNS') }
+    ], (res) => res.enabled === '1');
     so.depends('action', 'resolve');
     so.modalonly = true;
 
@@ -890,20 +826,11 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'address_resolver', _('Address resolver'),
       _('Tag of a another server to resolve the domain name in the address. Required if address contains domain.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('', _('None'));
-      this.value('default-dns', _('Default DNS (issued by WAN)'));
-      this.value('system-dns', _('System DNS'));
-      uci.sections(data[0], 'dns_server', (res) => {
-        if (res['.name'] !== section_id && res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+      { value: '', label: _('None') },
+      { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
+      { value: 'system-dns', label: _('System DNS') }
+    ], (res, section_id) => res['.name'] !== section_id && res.enabled === '1');
     so.validate = function (section_id, value) {
       if (section_id && value) {
         let conflict = false;
@@ -929,18 +856,9 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'outbound', _('Outbound'),
       _('Tag of an outbound for connecting to the dns server.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('direct-out', _('Direct'));
-      uci.sections(data[0], 'routing_node', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'routing_node', [
+      { value: 'direct-out', label: _('Direct') }
+    ], (res) => res.enabled === '1');
     so.default = 'direct-out';
     so.rmempty = false;
     so.editable = true;
@@ -1057,19 +975,10 @@ return view.extend({
 
     so = ss.taboption('field_other', form.ListValue, 'server', _('Server'),
       _('Tag of the target dns server.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('default-dns', _('Default DNS (issued by WAN)'));
-      this.value('system-dns', _('System DNS'));
-      uci.sections(data[0], 'dns_server', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+      { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
+      { value: 'system-dns', label: _('System DNS') }
+    ], (res) => res.enabled === '1');
     so.rmempty = false;
     so.editable = true;
     so.depends('action', 'route');

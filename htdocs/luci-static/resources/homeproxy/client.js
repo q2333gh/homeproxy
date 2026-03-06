@@ -6,6 +6,7 @@
 
 'use strict';
 'require rpc';
+'require uci';
 'require validation';
 
 const callServiceList = rpc.declare({
@@ -121,10 +122,30 @@ function bindDomainListOption(option, listType) {
 	return option;
 }
 
+function bindSectionListLoad(option, uciconfig, sectionType, baseValues, predicate) {
+	option.load = function (section_id) {
+		delete this.keylist;
+		delete this.vallist;
+
+		for (let item of (baseValues || []))
+			this.value(item.value, item.label);
+
+		uci.sections(uciconfig, sectionType, (res) => {
+			if (!predicate || predicate(res, section_id))
+				this.value(res['.name'], res.label);
+		});
+
+		return this.super('load', section_id);
+	};
+
+	return option;
+}
+
 return {
 	callReadDomainList,
 	callWriteDomainList,
 	bindDomainListOption,
+	bindSectionListLoad,
 	getServiceStatus,
 	renderStatus,
 	stubValidator,
