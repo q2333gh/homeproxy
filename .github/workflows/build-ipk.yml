@@ -9,6 +9,7 @@ on:
       - 'htdocs/**'
       - 'po/**'
       - 'root/**'
+      - 'test/**'
       - 'cli-go/**'
       - 'Makefile'
       - '.github/**'
@@ -25,6 +26,7 @@ on:
     paths:
       - 'htdocs/**'
       - 'root/**'
+      - 'test/**'
       - 'cli-go/**'
       - 'Makefile'
       - '.github/**'
@@ -46,6 +48,15 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: cli-go/go.mod
+
+      - name: Run CLI unit tests
+        run: |
+          cd cli-go
+          go test ./...
+
+      - name: Run JS and ucode regression tests
+        run: |
+          node --test test/**/*.test.mjs
 
       - name: Checkout apk
         uses: actions/checkout@v5
