@@ -15,6 +15,168 @@
 'require homeproxy.node as hpnode';
 'require tools.widgets as widgets';
 
+function appendTLSOptions(s, features) {
+	let o;
+
+	/* TLS config start */
+	o = s.option(form.Flag, 'tls', _('TLS'));
+	o.depends('type', 'anytls');
+	o.depends('type', 'http');
+	o.depends('type', 'hysteria');
+	o.depends('type', 'hysteria2');
+	o.depends('type', 'shadowtls');
+	o.depends('type', 'trojan');
+	o.depends('type', 'tuic');
+	o.depends('type', 'vless');
+	o.depends('type', 'vmess');
+	o.validate = function(section_id, _value) {
+		if (section_id) {
+			let type = this.map.lookupOption('type', section_id)[0].formvalue(section_id);
+			let tls = this.map.findElement('id', 'cbid.homeproxy.%s.tls'.format(section_id)).firstElementChild;
+
+			if (['anytls', 'hysteria', 'hysteria2', 'shadowtls', 'tuic'].includes(type)) {
+				tls.checked = true;
+				tls.disabled = true;
+			} else {
+				tls.disabled = null;
+			}
+		}
+
+		return true;
+	}
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'tls_sni', _('TLS SNI'),
+		_('Used to verify the hostname on the returned certificates unless insecure is given.'));
+	o.depends('tls', '1');
+	o.modalonly = true;
+
+	o = s.option(form.DynamicList, 'tls_alpn', _('TLS ALPN'),
+		_('List of supported application level protocols, in order of preference.'));
+	o.depends('tls', '1');
+	o.modalonly = true;
+
+	o = s.option(form.Flag, 'tls_insecure', _('Allow insecure'),
+		_('Allow insecure connection at TLS client.') +
+		'<br/>' +
+		_('This is <strong>DANGEROUS</strong>, your traffic is almost like <strong>PLAIN TEXT</strong>! Use at your own risk!'));
+	o.depends('tls', '1');
+	o.onchange = hpnode.allowInsecureConfirm;
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'tls_min_version', _('Minimum TLS version'),
+		_('The minimum TLS version that is acceptable.'));
+	o.value('', _('default'));
+	for (let i of hp.tls_versions)
+		o.value(i);
+	o.depends('tls', '1');
+	o.modalonly = true;
+
+	o = s.option(form.ListValue, 'tls_max_version', _('Maximum TLS version'),
+		_('The maximum TLS version that is acceptable.'));
+	o.value('', _('default'));
+	for (let i of hp.tls_versions)
+		o.value(i);
+	o.depends('tls', '1');
+	o.modalonly = true;
+
+	o = s.option(hp.CBIStaticList, 'tls_cipher_suites', _('Cipher suites'),
+		_('The elliptic curves that will be used in an ECDHE handshake, in preference order. If empty, the default will be used.'));
+	for (let i of hp.tls_cipher_suites)
+		o.value(i);
+	o.depends('tls', '1');
+	o.optional = true;
+	o.modalonly = true;
+
+	o = s.option(form.Flag, 'tls_self_sign', _('Append self-signed certificate'),
+		_('If you have the root certificate, use this option instead of allowing insecure.'));
+	o.depends('tls_insecure', '0');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'tls_cert_path', _('Certificate path'),
+		_('The path to the server certificate, in PEM format.'));
+	o.value('/etc/homeproxy/certs/client_ca.pem');
+	o.depends('tls_self_sign', '1');
+	o.validate = hp.validateCertificatePath;
+	o.rmempty = false;
+	o.modalonly = true;
+
+	o = s.option(form.Button, '_upload_cert', _('Upload certificate'),
+		_('<strong>Save your configuration before uploading files!</strong>'));
+	o.inputstyle = 'action';
+	o.inputtitle = _('Upload...');
+	o.depends({'tls_self_sign': '1', 'tls_cert_path': '/etc/homeproxy/certs/client_ca.pem'});
+	o.onclick = L.bind(hp.uploadCertificate, null, _('certificate'), 'client_ca');
+	o.modalonly = true;
+
+	o = s.option(form.Flag, 'tls_ech', _('Enable ECH'),
+		_('ECH (Encrypted Client Hello) is a TLS extension that allows a client to encrypt the first part of its ClientHello message.'));
+	o.depends('tls', '1');
+	o.modalonly = true;
+
+	o = s.option(form.Value, 'tls_ech_config_path', _('ECH config path'),
+		_('The path to the ECH config, in PEM format. If empty, load from DNS will be attempted.'));
+	o.value('/etc/homeproxy/certs/client_ech_conf.pem');
+	o.depends('tls_ech', '1');
+	o.modalonly = true;
+
+	o = s.option(form.Button, '_upload_ech_config', _('Upload ECH config'),
+		_('<strong>Save your configuration before uploading files!</strong>'));
+	o.inputstyle = 'action';
+	o.inputtitle = _('Upload...');
+	o.depends({'tls_ech': '1', 'tls_ech_config_path': '/etc/homeproxy/certs/client_ech_conf.pem'});
+	o.onclick = L.bind(hp.uploadCertificate, null, _('ECH config'), 'client_ech_conf');
+	o.modalonly = true;
+
+	if (features.with_utls) {
+		o = s.option(form.ListValue, 'tls_utls', _('uTLS fingerprint'),
+			_('uTLS is a fork of "crypto/tls", which provides ClientHello fingerprinting resistance.'));
+		o.value('', _('Disable'));
+		o.value('360');
+		o.value('android');
+		o.value('chrome');
+		o.value('edge');
+		o.value('firefox');
+		o.value('ios');
+		o.value('qq');
+		o.value('random');
+		o.value('randomized');
+		o.value('safari');
+		o.depends({'tls': '1', 'type': /^((?!hysteria2?|tuic$).)+$/});
+		o.validate = function(section_id, value) {
+			if (section_id) {
+				let tls_reality = this.map.findElement('id', 'cbid.homeproxy.%s.tls_reality'.format(section_id)).firstElementChild;
+				if (tls_reality.checked && !value)
+					return _('Expecting: %s').format(_('non-empty value'));
+
+				let vless_flow = this.map.lookupOption('vless_flow', section_id)[0].formvalue(section_id);
+				if ((tls_reality.checked || vless_flow) && ['360', 'android'].includes(value))
+					return _('Unsupported fingerprint!');
+			}
+
+			return true;
+		}
+		o.modalonly = true;
+
+		o = s.option(form.Flag, 'tls_reality', _('REALITY'));
+		o.depends({'tls': '1', 'type': 'anytls'});
+		o.depends({'tls': '1', 'type': 'vless'});
+		o.modalonly = true;
+
+		o = s.option(form.Value, 'tls_reality_public_key', _('REALITY public key'));
+		o.password = true;
+		o.depends('tls_reality', '1');
+		o.rmempty = false;
+		o.modalonly = true;
+
+		o = s.option(form.Value, 'tls_reality_short_id', _('REALITY short ID'));
+		o.password = true;
+		o.depends('tls_reality', '1');
+		o.modalonly = true;
+	}
+	/* TLS config end */
+}
+
 function renderNodeSettings(section, data, features, main_node, routing_mode) {
 	let s = section, o;
 	s.rowcolors = true;
@@ -626,163 +788,7 @@ function renderNodeSettings(section, data, features, main_node, routing_mode) {
 	o.modalonly = true;
 	/* Mux config end */
 
-	/* TLS config start */
-	o = s.option(form.Flag, 'tls', _('TLS'));
-	o.depends('type', 'anytls');
-	o.depends('type', 'http');
-	o.depends('type', 'hysteria');
-	o.depends('type', 'hysteria2');
-	o.depends('type', 'shadowtls');
-	o.depends('type', 'trojan');
-	o.depends('type', 'tuic');
-	o.depends('type', 'vless');
-	o.depends('type', 'vmess');
-	o.validate = function(section_id, _value) {
-		if (section_id) {
-			let type = this.map.lookupOption('type', section_id)[0].formvalue(section_id);
-			let tls = this.map.findElement('id', 'cbid.homeproxy.%s.tls'.format(section_id)).firstElementChild;
-
-			if (['anytls', 'hysteria', 'hysteria2', 'shadowtls', 'tuic'].includes(type)) {
-				tls.checked = true;
-				tls.disabled = true;
-			} else {
-				tls.disabled = null;
-			}
-		}
-
-		return true;
-	}
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'tls_sni', _('TLS SNI'),
-		_('Used to verify the hostname on the returned certificates unless insecure is given.'));
-	o.depends('tls', '1');
-	o.modalonly = true;
-
-	o = s.option(form.DynamicList, 'tls_alpn', _('TLS ALPN'),
-		_('List of supported application level protocols, in order of preference.'));
-	o.depends('tls', '1');
-	o.modalonly = true;
-
-	o = s.option(form.Flag, 'tls_insecure', _('Allow insecure'),
-		_('Allow insecure connection at TLS client.') +
-		'<br/>' +
-		_('This is <strong>DANGEROUS</strong>, your traffic is almost like <strong>PLAIN TEXT</strong>! Use at your own risk!'));
-	o.depends('tls', '1');
-	o.onchange = hpnode.allowInsecureConfirm;
-	o.modalonly = true;
-
-	o = s.option(form.ListValue, 'tls_min_version', _('Minimum TLS version'),
-		_('The minimum TLS version that is acceptable.'));
-	o.value('', _('default'));
-	for (let i of hp.tls_versions)
-		o.value(i);
-	o.depends('tls', '1');
-	o.modalonly = true;
-
-	o = s.option(form.ListValue, 'tls_max_version', _('Maximum TLS version'),
-		_('The maximum TLS version that is acceptable.'));
-	o.value('', _('default'));
-	for (let i of hp.tls_versions)
-		o.value(i);
-	o.depends('tls', '1');
-	o.modalonly = true;
-
-	o = s.option(hp.CBIStaticList, 'tls_cipher_suites', _('Cipher suites'),
-		_('The elliptic curves that will be used in an ECDHE handshake, in preference order. If empty, the default will be used.'));
-	for (let i of hp.tls_cipher_suites)
-		o.value(i);
-	o.depends('tls', '1');
-	o.optional = true;
-	o.modalonly = true;
-
-	o = s.option(form.Flag, 'tls_self_sign', _('Append self-signed certificate'),
-		_('If you have the root certificate, use this option instead of allowing insecure.'));
-	o.depends('tls_insecure', '0');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'tls_cert_path', _('Certificate path'),
-		_('The path to the server certificate, in PEM format.'));
-	o.value('/etc/homeproxy/certs/client_ca.pem');
-	o.depends('tls_self_sign', '1');
-	o.validate = hp.validateCertificatePath;
-	o.rmempty = false;
-	o.modalonly = true;
-
-	o = s.option(form.Button, '_upload_cert', _('Upload certificate'),
-		_('<strong>Save your configuration before uploading files!</strong>'));
-	o.inputstyle = 'action';
-	o.inputtitle = _('Upload...');
-	o.depends({'tls_self_sign': '1', 'tls_cert_path': '/etc/homeproxy/certs/client_ca.pem'});
-	o.onclick = L.bind(hp.uploadCertificate, this, _('certificate'), 'client_ca');
-	o.modalonly = true;
-
-	o = s.option(form.Flag, 'tls_ech', _('Enable ECH'),
-		_('ECH (Encrypted Client Hello) is a TLS extension that allows a client to encrypt the first part of its ClientHello message.'));
-	o.depends('tls', '1');
-	o.modalonly = true;
-
-	o = s.option(form.Value, 'tls_ech_config_path', _('ECH config path'),
-		_('The path to the ECH config, in PEM format. If empty, load from DNS will be attempted.'));
-	o.value('/etc/homeproxy/certs/client_ech_conf.pem');
-	o.depends('tls_ech', '1');
-	o.modalonly = true;
-
-	o = s.option(form.Button, '_upload_ech_config', _('Upload ECH config'),
-		_('<strong>Save your configuration before uploading files!</strong>'));
-	o.inputstyle = 'action';
-	o.inputtitle = _('Upload...');
-	o.depends({'tls_ech': '1', 'tls_ech_config_path': '/etc/homeproxy/certs/client_ech_conf.pem'});
-	o.onclick = L.bind(hp.uploadCertificate, this, _('ECH config'), 'client_ech_conf');
-	o.modalonly = true;
-
-	if (features.with_utls) {
-		o = s.option(form.ListValue, 'tls_utls', _('uTLS fingerprint'),
-			_('uTLS is a fork of "crypto/tls", which provides ClientHello fingerprinting resistance.'));
-		o.value('', _('Disable'));
-		o.value('360');
-		o.value('android');
-		o.value('chrome');
-		o.value('edge');
-		o.value('firefox');
-		o.value('ios');
-		o.value('qq');
-		o.value('random');
-		o.value('randomized');
-		o.value('safari');
-		o.depends({'tls': '1', 'type': /^((?!hysteria2?|tuic$).)+$/});
-		o.validate = function(section_id, value) {
-			if (section_id) {
-				let tls_reality = this.map.findElement('id', 'cbid.homeproxy.%s.tls_reality'.format(section_id)).firstElementChild;
-				if (tls_reality.checked && !value)
-					return _('Expecting: %s').format(_('non-empty value'));
-
-				let vless_flow = this.map.lookupOption('vless_flow', section_id)[0].formvalue(section_id);
-				if ((tls_reality.checked || vless_flow) && ['360', 'android'].includes(value))
-					return _('Unsupported fingerprint!');
-			}
-
-			return true;
-		}
-		o.modalonly = true;
-
-		o = s.option(form.Flag, 'tls_reality', _('REALITY'));
-		o.depends({'tls': '1', 'type': 'anytls'});
-		o.depends({'tls': '1', 'type': 'vless'});
-		o.modalonly = true;
-
-		o = s.option(form.Value, 'tls_reality_public_key', _('REALITY public key'));
-		o.password = true;
-		o.depends('tls_reality', '1');
-		o.rmempty = false;
-		o.modalonly = true;
-
-		o = s.option(form.Value, 'tls_reality_short_id', _('REALITY short ID'));
-		o.password = true;
-		o.depends('tls_reality', '1');
-		o.modalonly = true;
-	}
-	/* TLS config end */
+	appendTLSOptions(s, features);
 
 	/* Extra settings start */
 	o = s.option(form.Flag, 'tcp_fast_open', _('TCP fast open'));
