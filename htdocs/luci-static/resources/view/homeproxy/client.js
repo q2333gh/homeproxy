@@ -719,19 +719,10 @@ return view.extend({
       so.value(i, hp.dns_strategy[i]);
 
     so = ss.option(form.ListValue, 'default_server', _('Default DNS server'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('default-dns', _('Default DNS (issued by WAN)'));
-      this.value('system-dns', _('System DNS'));
-      uci.sections(data[0], 'dns_server', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'dns_server', [
+      { value: 'default-dns', label: _('Default DNS (issued by WAN)') },
+      { value: 'system-dns', label: _('System DNS') }
+    ], (res) => res.enabled === '1');
     so.default = 'default-dns';
     so.rmempty = false;
 
@@ -939,17 +930,7 @@ return view.extend({
 
     so = ss.taboption('field_other', hp.CBIStaticList, 'rule_set', _('Rule set'),
       _('Match rule set.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      uci.sections(data[0], 'ruleset', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'ruleset', [], (res) => res.enabled === '1');
     so.modalonly = true;
 
     so = ss.taboption('field_other', form.Flag, 'rule_set_ip_cidr_match_source', _('Rule set IP CIDR as source IP'),
@@ -1186,19 +1167,10 @@ return view.extend({
 
     so = ss.option(form.ListValue, 'outbound', _('Outbound'),
       _('Tag of the outbound to download rule set.'));
-    so.load = function (section_id) {
-      delete this.keylist;
-      delete this.vallist;
-
-      this.value('', _('Default'));
-      this.value('direct-out', _('Direct'));
-      uci.sections(data[0], 'routing_node', (res) => {
-        if (res.enabled === '1')
-          this.value(res['.name'], res.label);
-      });
-
-      return this.super('load', section_id);
-    }
+    hpclient.bindSectionListLoad(so, data[0], 'routing_node', [
+      { value: '', label: _('Default') },
+      { value: 'direct-out', label: _('Direct') }
+    ], (res) => res.enabled === '1');
     so.depends('type', 'remote');
 
     so = ss.option(form.Value, 'update_interval', _('Update interval'),
