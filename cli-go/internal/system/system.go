@@ -117,4 +117,3 @@ func UBUSCall(object, method string, params any) (string, error) {
 	}
 	return runCommand("ubus", "call", object, method, string(data))
 }
-

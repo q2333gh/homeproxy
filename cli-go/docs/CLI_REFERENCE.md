@@ -223,6 +223,17 @@ Generate Markdown reference (from-first-src)
 homeproxy docs <action> [options]
 ```
 
+## Automatic Health Shutdown
+
+HomeProxy can automatically stop the full service when international connectivity stays unhealthy.
+
+- Enable it with the LuCI status page toggle: `Auto shutdown on Google failure`.
+- The runtime check uses the same shared probe as LuCI Google test: `wget --spider -qT3 https://www.google.com`.
+- One failed round means the initial check failed and the retries after `2s`, `4s`, and `8s` all failed.
+- After `3` consecutive failed rounds, HomeProxy executes a full `stop`, including proxy client/server, DNS hijack, firewall rules, and routing takeover.
+- Runtime audit logs are written to `/var/run/homeproxy/homeproxy.log` with the `[HEALTH]` prefix.
+- The internal monitor entrypoint is `homeproxy health-monitor`; it is started by `/etc/init.d/homeproxy` and is not intended for normal manual use.
+
 ## Options
 
 | Option | Description |

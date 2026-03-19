@@ -238,6 +238,25 @@ return view.extend({
 		o = s.option(form.DummyValue, '_check_google', _('Google'));
 		o.cfgvalue = L.bind(getConnStat, this, o, 'google');
 
+		o = s.option(form.Flag, 'health_auto_shutdown', _('Auto shutdown on Google failure'),
+			_('Use wget Google checks. Retry in 2/4/8 seconds within a round, then stop the full HomeProxy service after 3 failed rounds.'));
+		o.rmempty = false;
+		o.renderWidget = function() {
+			let node = form.Flag.prototype.renderWidget.apply(this, arguments);
+
+			(node.querySelector('.control-group') || node).appendChild(E('button', {
+				'class': 'cbi-button cbi-button-apply',
+				'title': _('Save'),
+				'click': ui.createHandlerFn(this, () => {
+					return this.map.save(null, true).then(() => {
+						ui.changes.apply(true);
+					});
+				}, this.option)
+			}, [ _('Save') ]));
+
+			return node;
+		}
+
 		s = m.section(form.NamedSection, 'config', 'homeproxy', _('Resources management'));
 		s.anonymous = true;
 

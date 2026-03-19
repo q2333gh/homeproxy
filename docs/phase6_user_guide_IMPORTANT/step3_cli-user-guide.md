@@ -27,6 +27,23 @@
 
 ---
 
+## 二点五、健康检查自动停机
+
+如果你已经在 LuCI 状态页启用了 `Auto shutdown on Google failure`：
+
+- HomeProxy 会使用与 LuCI `Google` 检测相同的探针：
+  `wget --spider -qT3 https://www.google.com`
+- 单轮失败判定为：
+  首次失败后，再按 `2s -> 4s -> 8s` 退避重试，四次都失败才算 1 轮失败
+- 连续 `3` 轮失败后，HomeProxy 会执行完整 `stop`
+- 该动作会撤销代理、DNS 接管、防火墙规则和路由接管
+- 相关日志在：
+  `/var/run/homeproxy/homeproxy.log`
+
+> 该监控器由 `/etc/init.d/homeproxy` 自动拉起，内部入口为 `homeproxy health-monitor`，正常情况下不需要手工调用。
+
+---
+
 ## 三、命令速查（基于 CLI_REFERENCE）
 
 ### node

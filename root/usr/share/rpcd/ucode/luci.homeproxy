@@ -20,6 +20,11 @@ function hasKernelModule(kmod) {
 
 const HP_DIR = '/etc/homeproxy';
 const RUN_DIR = '/var/run/homeproxy';
+const CHECK_SCRIPT = `${HP_DIR}/scripts/connection_check.sh`;
+
+function runConnectionCheck(site) {
+	return system(`/bin/sh ${shellquote(CHECK_SCRIPT)} ${shellquote(site)} 2>\"/dev/null\"`, 3100) === 0;
+}
 
 const methods = {
 	acllist_read: {
@@ -124,20 +129,10 @@ const methods = {
 	connection_check: {
 		args: { site: 'site' },
 		call: function(req) {
-			let url;
-			switch(req.args?.site) {
-			case 'baidu':
-				url = 'https://www.baidu.com';
-				break;
-			case 'google':
-				url = 'https://www.google.com';
-				break;
-			default:
+			if (index(['baidu', 'google'], req.args?.site) === -1)
 				return { result: false, error: 'illegal site' };
-				break;
-			}
 
-			return { result: (system(`/usr/bin/wget --spider -qT3 ${url} 2>"/dev/null"`, 3100) === 0) };
+			return { result: runConnectionCheck(req.args?.site) };
 		}
 	},
 

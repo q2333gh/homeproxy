@@ -16,4 +16,3 @@ func logWarn(msg string) {
 func logError(msg string) {
 	fmt.Fprintf(os.Stderr, "[ERROR] %s\n", msg)
 }
-

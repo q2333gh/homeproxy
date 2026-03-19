@@ -52,4 +52,3 @@ func controlCommand(args []string) error {
 
 	return nil
 }
-

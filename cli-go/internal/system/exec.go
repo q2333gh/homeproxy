@@ -31,4 +31,3 @@ func execRunCommand(name string, args ...string) (string, error) {
 
 	return strings.TrimSpace(stdout.String()), nil
 }
-

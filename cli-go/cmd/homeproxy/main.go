@@ -55,6 +55,8 @@ func run(args []string) error {
 		return completionCommand(subArgs)
 	case "docs":
 		return docsCommand(subArgs)
+	case "health-monitor":
+		return healthMonitorCommand(subArgs)
 	default:
 		printUsage()
 		return fmt.Errorf("unknown command: %s", command)
@@ -83,4 +85,3 @@ func printUsage() {
 	fmt.Println("    -h, --help           Show this help")
 	fmt.Println("    --json               Machine-readable JSON output (status, node list, subscription list, routing get, dns get)")
 }
-
