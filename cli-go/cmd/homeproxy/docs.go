@@ -67,6 +67,15 @@ func genMarkdown() string {
 		}
 	}
 
+	b.WriteString("## Automatic Health Shutdown\n\n")
+	b.WriteString("HomeProxy can automatically stop the full service when international connectivity stays unhealthy.\n\n")
+	b.WriteString("- Enable it with the LuCI status page toggle: `Auto shutdown on Google failure`.\n")
+	b.WriteString("- The runtime check uses the same shared probe as LuCI Google test: `wget --spider -qT3 https://www.google.com`.\n")
+	b.WriteString("- One failed round means the initial check failed and the retries after `2s`, `4s`, and `8s` all failed.\n")
+	b.WriteString("- After `3` consecutive failed rounds, HomeProxy executes a full `stop`, including proxy client/server, DNS hijack, firewall rules, and routing takeover.\n")
+	b.WriteString("- Runtime audit logs are written to `/var/run/homeproxy/homeproxy.log` with the `[HEALTH]` prefix.\n")
+	b.WriteString("- The internal monitor entrypoint is `homeproxy health-monitor`; it is started by `/etc/init.d/homeproxy` and is not intended for normal manual use.\n\n")
+
 	b.WriteString("## Options\n\n")
 	b.WriteString("| Option | Description |\n")
 	b.WriteString("|--------|-------------|\n")

@@ -37,9 +37,7 @@ source <(homeproxy completion bash)
 ## 文档生成
 
 ```bash
-# 输出到 stdout
-homeproxy docs
-
+ 
 # 写入文件（目录不存在时会自动创建）
 homeproxy docs --out docs/CLI_REFERENCE.md
 ```
@@ -76,3 +74,9 @@ go test ./...
 ```
 
 详见 [TESTING.md](TESTING.md)。
+
+# proxy node health check:
+wget goolge 
+启动宽限期：60 秒
+正常轮询间隔：30 秒一次
+单轮失败后追加重试：2 秒、4 秒、8 秒
