@@ -211,6 +211,48 @@ func TestUnknownCommand(t *testing.T) {
 	}
 }
 
+func TestNodeTestParsesUBUSJSON(t *testing.T) {
+	mock := &testutil.MockRunner{}
+	oldRun := system.RunCommandImpl
+	oldCheck := system.CheckInstalledFunc
+	defer func() {
+		system.RunCommandImpl = oldRun
+		system.CheckInstalledFunc = oldCheck
+	}()
+
+	system.CheckInstalledFunc = func() error { return nil }
+	system.RunCommandImpl = func(name string, args ...string) (string, error) {
+		if name == "uci" && len(args) >= 2 {
+			switch args[0] {
+			case "show":
+				if args[1] == "homeproxy" {
+					return "homeproxy.cfgtest=node\n", nil
+				}
+			case "get":
+				switch args[1] {
+				case "homeproxy.cfgtest.label":
+					return "node1", nil
+				}
+			}
+		}
+		if name == "ubus" && len(args) >= 3 && args[2] == "connection_check" {
+			return "{\n  \"result\": true\n}", nil
+		}
+		return mock.Run(name, args...)
+	}
+
+	_, stderr, err := captureOutput(func() error { return run([]string{"node", "test", "node1"}) })
+	if err != nil {
+		t.Fatalf("node test: %v", err)
+	}
+	if !strings.Contains(stderr, "Google: PASS") {
+		t.Fatalf("expected Google PASS, got: %s", stderr)
+	}
+	if !strings.Contains(stderr, "Baidu: PASS") {
+		t.Fatalf("expected Baidu PASS, got: %s", stderr)
+	}
+}
+
 // Contract tests: verify CLI invokes ubus/uci with params matching the LuCI API contract.
 func TestContractResourcesVersion(t *testing.T) {
 	mock := &testutil.MockRunner{}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -203,7 +204,11 @@ func nodeTest(args []string) error {
 	if err != nil {
 		return err
 	}
-	if strings.Contains(raw, `"result":true`) {
+	ok, err := parseConnectionCheckResult(raw)
+	if err != nil {
+		return err
+	}
+	if ok {
 		logInfo("Google: PASS")
 	} else {
 		logError("Google: FAIL")
@@ -213,12 +218,26 @@ func nodeTest(args []string) error {
 	if err != nil {
 		return err
 	}
-	if strings.Contains(raw, `"result":true`) {
+	ok, err = parseConnectionCheckResult(raw)
+	if err != nil {
+		return err
+	}
+	if ok {
 		logInfo("Baidu: PASS")
 	} else {
 		logError("Baidu: FAIL")
 	}
 	return nil
+}
+
+func parseConnectionCheckResult(raw string) (bool, error) {
+	var resp struct {
+		Result bool `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(raw), &resp); err != nil {
+		return false, fmt.Errorf("failed to decode connection check response: %w", err)
+	}
+	return resp.Result, nil
 }
 
 func nodeSetMain(args []string) error {
