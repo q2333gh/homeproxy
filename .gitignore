@@ -8,3 +8,5 @@ cli-go/homeproxy.exe
 test/qemu-openwrt/os-imgs
 
 dist/
+
+*.out
