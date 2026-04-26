@@ -1,0 +1,8 @@
+# HomeProxy direct whitelist (one domain per line)
+# - Empty lines are ignored
+# - Lines starting with # are comments
+# - Keep domains lowercase
+
+# Example:
+# example.com
+google.com

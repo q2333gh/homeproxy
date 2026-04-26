@@ -1,0 +1,24 @@
+name: whitelist-validate
+
+on:
+  pull_request:
+    paths:
+      - "ops/whitelist-gitops/**"
+      - ".github/workflows/whitelist-validate.yml"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "ops/whitelist-gitops/**"
+      - ".github/workflows/whitelist-validate.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate whitelist
+        run: python3 ops/whitelist-gitops/validate.py
